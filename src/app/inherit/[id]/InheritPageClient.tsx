@@ -48,6 +48,7 @@ export default function InheritPageClient({ id }: { id: string }) {
       if (!isMounted.current) {
         return;
       }
+      console.error('[InheritPage] Failed to load will:', err);
       setError(formatError(err));
     } finally {
       if (isMounted.current) {
@@ -89,6 +90,7 @@ export default function InheritPageClient({ id }: { id: string }) {
       await refetch();
       toast.success('Inheritance claimed successfully');
     } catch (err) {
+      console.error('[InheritPage] Failed to claim inheritance:', err);
       const message = formatError(err);
       setError(message);
       toast.error(message);
@@ -109,7 +111,9 @@ export default function InheritPageClient({ id }: { id: string }) {
   if (error && !will) {
     return (
       <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-        <h1 className="text-lg font-semibold text-red-300">Couldn&apos;t load this will</h1>
+        <h1 className="text-lg font-semibold text-red-300">
+          Could not load will — check your connection
+        </h1>
         <p className="mt-2 text-sm text-red-300/70">{error}</p>
         <button
           type="button"

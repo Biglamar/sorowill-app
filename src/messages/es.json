@@ -150,5 +150,26 @@
     "triggeredDescription": "Se perdió una fecha límite de chequeo. El propietario aún puede demostrar que está vivo.",
     "releasedDescription": "La herencia ha sido distribuida a todos los beneficiarios.",
     "cancelledDescription": "El propietario canceló este testamento y retiró el saldo."
+  },
+  "errors": {
+    "couldNotLoadWill": "No se pudo cargar el testamento — verifica tu conexión e inténtalo de nuevo.",
+    "couldNotLoadDashboard": "No se pudo cargar tu panel de control — verifica tu conexión e inténtalo de nuevo.",
+    "couldNotLoadInheritance": "No se pudo cargar el testamento — verifica tu conexión e inténtalo de nuevo.",
+    "tryAgain": "Intentar de nuevo",
+    "retry": "Reintentar"
+  },
+  "inherit": {
+    "title": "Herencia — Testamento #{id}",
+    "description": "Si el propietario de un SoroWill fallece o se vuelve inalcanzable, esta página permite a un beneficiario nombrado ver — y, una vez transcurrido el período de gracia, activar — la distribución en cadena del saldo del testamento.",
+    "yourShare": "Tu parte correspondiente",
+    "allBeneficiaries": "Todos los beneficiarios",
+    "notABeneficiary": "El monedero conectado no es uno de los beneficiarios de este testamento.",
+    "connectWallet": "Conecta un monedero para ver tu parte correspondiente.",
+    "alreadyReleased": "Este testamento ya ha sido distribuido a todos los beneficiarios en una sola transacción.",
+    "notReadyYet": "Este testamento aún no está listo para liberarse. La distribución solo está disponible una vez que el propietario pierda un chequeo y haya transcurrido completamente el período de gracia.",
+    "claimInheritance": "Reclamar Herencia",
+    "claiming": "Reclamando…",
+    "couldNotLoad": "No se pudo cargar este testamento",
+    "invalidWillId": "ID de testamento inválido"
   }
 }

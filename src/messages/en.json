@@ -150,5 +150,26 @@
     "triggeredDescription": "A check-in deadline was missed. The owner can still prove they are alive.",
     "releasedDescription": "The inheritance has been distributed to all beneficiaries.",
     "cancelledDescription": "The owner cancelled this will and withdrew the balance."
+  },
+  "errors": {
+    "couldNotLoadWill": "Could not load will — check your connection and try again.",
+    "couldNotLoadDashboard": "Could not load your dashboard — check your connection and try again.",
+    "couldNotLoadInheritance": "Could not load will — check your connection and try again.",
+    "tryAgain": "Try again",
+    "retry": "Retry"
+  },
+  "inherit": {
+    "title": "Inheritance — Will #{id}",
+    "description": "If a SoroWill owner passes away or becomes unreachable, this page lets a named beneficiary see — and, once the grace period has elapsed, trigger — the on-chain distribution of the will's balance.",
+    "yourShare": "Your entitled share",
+    "allBeneficiaries": "All beneficiaries",
+    "notABeneficiary": "The connected wallet is not one of this will's beneficiaries.",
+    "connectWallet": "Connect a wallet to see your entitled share.",
+    "alreadyReleased": "This will has already been distributed to all beneficiaries in a single transaction.",
+    "notReadyYet": "This will isn't ready to release yet. Distribution only becomes available once the owner misses a check-in and the grace period has fully elapsed.",
+    "claimInheritance": "Claim Inheritance",
+    "claiming": "Claiming…",
+    "couldNotLoad": "Couldn't load this will",
+    "invalidWillId": "Invalid will ID"
   }
 }
