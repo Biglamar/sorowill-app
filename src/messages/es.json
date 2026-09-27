@@ -156,7 +156,10 @@
     "couldNotLoadDashboard": "No se pudo cargar tu panel de control — verifica tu conexión e inténtalo de nuevo.",
     "couldNotLoadInheritance": "No se pudo cargar el testamento — verifica tu conexión e inténtalo de nuevo.",
     "tryAgain": "Intentar de nuevo",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "cloneNotFound": "El testamento ha sido eliminado — ya no existe en la cadena.",
+    "clonePermission": "Ya no tienes acceso a este testamento.",
+    "cloneNetwork": "No se puede obtener el testamento — verifica tu conexión e inténtalo de nuevo."
   },
   "inherit": {
     "title": "Herencia — Testamento #{id}",

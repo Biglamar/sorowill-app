@@ -156,7 +156,10 @@
     "couldNotLoadDashboard": "Could not load your dashboard — check your connection and try again.",
     "couldNotLoadInheritance": "Could not load will — check your connection and try again.",
     "tryAgain": "Try again",
-    "retry": "Retry"
+    "retry": "Retry",
+    "cloneNotFound": "Will has been deleted — it no longer exists on chain.",
+    "clonePermission": "You no longer have access to this will.",
+    "cloneNetwork": "Unable to fetch will — check your connection and try again."
   },
   "inherit": {
     "title": "Inheritance — Will #{id}",

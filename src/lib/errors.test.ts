@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { formatError, isWillNotFoundError, isWillNotFoundMessage } from './errors';
+import { classifyCloneError, formatError, isWillNotFoundError, isWillNotFoundMessage } from './errors';
 
 // Suppress console.error noise during these tests.
 beforeEach(() => {
@@ -146,5 +146,85 @@ describe('isWillNotFoundError', () => {
   it('returns false for non-Error values', () => {
     expect(isWillNotFoundError('will not found')).toBe(false);
     expect(isWillNotFoundError(null)).toBe(false);
+  });
+});
+
+describe('classifyCloneError (#441)', () => {
+  describe('not_found', () => {
+    it('classifies "not found" messages', () => {
+      expect(classifyCloneError(new Error('Will not found'))).toBe('not_found');
+    });
+    it('classifies "WillNotFound" SDK error code', () => {
+      expect(classifyCloneError(new Error('WillNotFound: id 99'))).toBe('not_found');
+    });
+    it('classifies contract error code #1', () => {
+      expect(classifyCloneError(new Error('error(contract, #1)'))).toBe('not_found');
+    });
+    it('classifies "does not exist"', () => {
+      expect(classifyCloneError(new Error('will does not exist'))).toBe('not_found');
+    });
+    it('classifies plain-object SDK throw with not-found message', () => {
+      expect(classifyCloneError({ message: 'WillNotFound: id 42' })).toBe('not_found');
+    });
+  });
+
+  describe('permission', () => {
+    it('classifies "unauthorized"', () => {
+      expect(classifyCloneError(new Error('unauthorized access'))).toBe('permission');
+    });
+    it('classifies "permission denied"', () => {
+      expect(classifyCloneError(new Error('permission denied'))).toBe('permission');
+    });
+    it('classifies "access denied"', () => {
+      expect(classifyCloneError(new Error('access denied'))).toBe('permission');
+    });
+    it('classifies "forbidden"', () => {
+      expect(classifyCloneError(new Error('forbidden'))).toBe('permission');
+    });
+    it('classifies "not allowed"', () => {
+      expect(classifyCloneError(new Error('action not allowed'))).toBe('permission');
+    });
+    it('classifies plain-object SDK throw with permission message', () => {
+      expect(classifyCloneError({ message: 'unauthorized', code: 403 })).toBe('permission');
+    });
+  });
+
+  describe('network', () => {
+    it('classifies "Failed to fetch"', () => {
+      expect(classifyCloneError(new Error('Failed to fetch'))).toBe('network');
+    });
+    it('classifies "network error"', () => {
+      expect(classifyCloneError(new Error('network error'))).toBe('network');
+    });
+    it('classifies "timeout"', () => {
+      expect(classifyCloneError(new Error('request timeout'))).toBe('network');
+    });
+    it('classifies plain-object SDK throw with network message', () => {
+      expect(classifyCloneError({ message: 'fetch failed', code: 503 })).toBe('network');
+    });
+  });
+
+  describe('unknown', () => {
+    it('classifies unrecognised Error messages as unknown', () => {
+      expect(classifyCloneError(new Error('xdr_decode_panic'))).toBe('unknown');
+    });
+    it('classifies null as unknown', () => {
+      expect(classifyCloneError(null)).toBe('unknown');
+    });
+    it('classifies undefined as unknown', () => {
+      expect(classifyCloneError(undefined)).toBe('unknown');
+    });
+    it('classifies a number as unknown', () => {
+      expect(classifyCloneError(42)).toBe('unknown');
+    });
+    it('classifies a plain object with no recognised message as unknown', () => {
+      expect(classifyCloneError({ code: 500 })).toBe('unknown');
+    });
+  });
+
+  describe('priority — not_found beats permission and network', () => {
+    it('returns not_found when the message contains both "not found" and "network"', () => {
+      expect(classifyCloneError(new Error('will not found on network'))).toBe('not_found');
+    });
   });
 });

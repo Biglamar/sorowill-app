@@ -8,7 +8,7 @@ import { formatUSDC, toStroops, validateBeneficiaries, type Beneficiary } from '
 import { truncateAddress, safeGetPublicKey } from '@/lib/freighter';
 import { getSoroWillClient } from '@/lib/sorowill';
 import { GUARDIAN_THRESHOLD, MAX_GUARDIANS } from '@/lib/constants';
-import { formatError } from '@/lib/errors';
+import { classifyCloneError, formatError, type CloneErrorKind } from '@/lib/errors';
 import { isFederatedAddress, resolveFederatedAddress } from '@/lib/federated';
 import { getUserBalance } from '@/lib/balance';
 import { isValidAmount } from '@/lib/amount';
@@ -74,6 +74,7 @@ export default function NewWillPage() {
   const [gracePeriodDays, setGracePeriodDays] = useState(7);
   const [guardians, setGuardians] = useState<string[]>([]);
   const [cloneLoading, setCloneLoading] = useState(false);
+  const [cloneError, setCloneError] = useState<CloneErrorKind | null>(null);
   const [resumeAvailable, setResumeAvailable] = useState(false);
 
   const stableGuardianIds = useStableRowIds(guardians.length);
@@ -156,23 +157,26 @@ export default function NewWillPage() {
   }, [ownerAddress]);
 
   useEffect(() => {
-    if (cloneFromId) {
-      setCloneLoading(true);
-      getSoroWillClient()
-        .getWill(cloneFromId)
-        .then((sourceWill) => {
-          setToken(sourceWill.token);
-          setBeneficiaries(sourceWill.beneficiaries);
-          setCheckinPeriodDays(sourceWill.checkinPeriodDays);
-          setGracePeriodDays(sourceWill.gracePeriodDays);
-          setGuardians(sourceWill.guardians);
-          setCloneLoading(false);
-        })
-        .catch((err) => {
-          setError(formatError(err));
-          setCloneLoading(false);
-        });
-    }
+    if (!cloneFromId) return;
+
+    setCloneLoading(true);
+    setCloneError(null);
+
+    getSoroWillClient()
+      .getWill(cloneFromId)
+      .then((sourceWill) => {
+        setToken(sourceWill.token);
+        setBeneficiaries(sourceWill.beneficiaries);
+        setCheckinPeriodDays(sourceWill.checkinPeriodDays);
+        setGracePeriodDays(sourceWill.gracePeriodDays);
+        setGuardians(sourceWill.guardians);
+        setCloneLoading(false);
+      })
+      .catch((err) => {
+        console.error('[NewWillPage] Clone source fetch failed:', err);
+        setCloneError(classifyCloneError(err));
+        setCloneLoading(false);
+      });
   }, [cloneFromId]);
 
   const tokenValid = CONTRACT_ADDRESS_PATTERN.test(token.trim());
@@ -427,7 +431,68 @@ export default function NewWillPage() {
         </div>
       )}
 
-      {!cloneLoading && (
+      {cloneError && (
+        <div
+          className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center"
+          role="alert"
+          data-testid="clone-error"
+        >
+          <h2 className="text-base font-semibold text-red-300">
+            {cloneError === 'not_found' && 'Will has been deleted'}
+            {cloneError === 'permission' && 'Access denied'}
+            {cloneError === 'network' && 'Connection error'}
+            {cloneError === 'unknown' && 'Could not load will'}
+          </h2>
+          <p className="mt-2 text-sm text-red-300/70">
+            {cloneError === 'not_found' &&
+              'Will has been deleted — it no longer exists on chain.'}
+            {cloneError === 'permission' &&
+              'You no longer have access to this will.'}
+            {cloneError === 'network' &&
+              'Unable to fetch will — check your connection and try again.'}
+            {cloneError === 'unknown' &&
+              'The source will could not be loaded. Please go back and try again.'}
+          </p>
+          <div className="mt-4 flex justify-center gap-3">
+            {cloneError === 'network' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCloneError(null);
+                  setCloneLoading(true);
+                  getSoroWillClient()
+                    .getWill(cloneFromId!)
+                    .then((sourceWill) => {
+                      setToken(sourceWill.token);
+                      setBeneficiaries(sourceWill.beneficiaries);
+                      setCheckinPeriodDays(sourceWill.checkinPeriodDays);
+                      setGracePeriodDays(sourceWill.gracePeriodDays);
+                      setGuardians(sourceWill.guardians);
+                      setCloneLoading(false);
+                    })
+                    .catch((err) => {
+                      console.error('[NewWillPage] Clone retry failed:', err);
+                      setCloneError(classifyCloneError(err));
+                      setCloneLoading(false);
+                    });
+                }}
+                className="rounded-full bg-will-purple px-4 py-2 text-sm font-medium text-white transition hover:bg-will-purple/90"
+              >
+                Try again
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="rounded-full border border-red-400/40 px-4 py-2 text-sm text-red-300 transition hover:border-red-400/70"
+            >
+              Go back
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!cloneLoading && !cloneError && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-6">
         {step === 0 ? (
           <div className="space-y-4">
@@ -720,6 +785,7 @@ export default function NewWillPage() {
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
+      {!cloneError && (
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
         <button
           type="button"
@@ -749,6 +815,7 @@ export default function NewWillPage() {
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }
