@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 const CHANGELOG_ENTRIES = [
   {
-    version: 'v1.0.0',
+    version: 'v0.1.0',
     date: 'July 2026',
     title: 'Launch',
     highlights: [

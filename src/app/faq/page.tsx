@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 const FAQs = [
   {
@@ -84,6 +85,7 @@ const FAQs = [
 ];
 
 export default function FAQPage() {
+  const t = useTranslations('faq');
   return (
     <div className="mx-auto max-w-3xl space-y-12 px-4 py-8 sm:py-16 sm:px-0">
       <section className="space-y-4">
@@ -171,18 +173,22 @@ export default function FAQPage() {
         <h2 className="text-2xl font-bold text-will-light">Frequently Asked Questions</h2>
 
         <div className="space-y-4">
-          {FAQs.map((faq) => (
+          {FAQs.map((faq, index) => {
+            const translatedQuestion = t(`items.${index}.question`);
+            const translatedAnswer = t(`items.${index}.answer`);
+            return (
             <details
-              key={faq.question}
+              key={translatedQuestion}
               className="rounded-xl border border-white/10 bg-white/5 p-6 transition-all [&[open]]:bg-white/10"
             >
               <summary className="flex cursor-pointer items-center justify-between font-semibold text-will-light hover:text-white">
-                <span>{faq.question}</span>
+                <span>{translatedQuestion}</span>
                 <span className="ml-2 text-will-purple">{/* + */}▸</span>
               </summary>
-              <p className="mt-4 text-sm text-will-light/70">{faq.answer}</p>
+              <p className="mt-4 text-sm text-will-light/70">{translatedAnswer}</p>
             </details>
-          ))}
+            );
+          })}
         </div>
       </section>
 

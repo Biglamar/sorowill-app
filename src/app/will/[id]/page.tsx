@@ -15,7 +15,7 @@ import {
 
 import { safeGetPublicKey, truncateAddress } from '@/lib/freighter';
 import { getSoroWillClient, stellarExpertUrl } from '@/lib/sorowill';
-import { formatError } from '@/lib/errors';
+import { formatError, formatLoadError } from '@/lib/errors';
 import { nextCheckinDeadline, graceDeadline } from '@/lib/deadlines';
 import { useToast } from '@/components/Toast';
 import { BeneficiaryForm } from '@/components/BeneficiaryForm';
@@ -171,7 +171,8 @@ export default function WillDetailPage() {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load will', err);
+      setError(formatLoadError(err));
     } finally {
       if (isMounted.current) {
         setLoading(false);
