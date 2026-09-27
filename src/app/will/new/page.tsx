@@ -16,6 +16,7 @@ import { BeneficiaryForm } from '@/components/BeneficiaryForm';
 import { GuardianForm } from '@/components/GuardianForm';
 import { validateGuardians } from '@/lib/guardianValidation';
 import { useStableRowIds } from '@/lib/useStableRowIds';
+import { useToast } from '@/components/Toast';
 
 const CHECKIN_OPTIONS = [30, 60, 90, 180, 365];
 const GRACE_OPTIONS = [3, 7, 14];
@@ -35,6 +36,15 @@ interface FormState {
   checkinPeriodDays: number;
   gracePeriodDays: number;
   guardians: string[];
+}
+
+export function isValidDraft(value: unknown): value is FormState {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as FormState;
+  return Number.isInteger(draft.step) && draft.step >= 0 && draft.step < STEP_LABELS.length &&
+    typeof draft.token === 'string' && typeof draft.amount === 'string' && Array.isArray(draft.beneficiaries) &&
+    Number.isInteger(draft.checkinPeriodDays) && draft.checkinPeriodDays > 0 &&
+    Number.isInteger(draft.gracePeriodDays) && draft.gracePeriodDays > 0 && Array.isArray(draft.guardians);
 }
 
 /** True when a check-in period exceeds the contract's safe storage TTL window. */
@@ -89,6 +99,7 @@ export default function NewWillPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   // Fetch the connected wallet address once so we can reject it as a guardian.
   useEffect(() => {
@@ -99,14 +110,10 @@ export default function NewWillPage() {
     if (typeof window !== 'undefined') {
       const draft = localStorage.getItem(STORAGE_KEY);
       if (draft && !cloneFromId) {
-        try {
-          setResumeAvailable(true);
-        } catch {
-          setResumeAvailable(false);
-        }
+        try { const parsed: unknown = JSON.parse(draft); if (isValidDraft(parsed)) setResumeAvailable(true); else { localStorage.removeItem(STORAGE_KEY); toast.error('Saved draft was invalid and has been discarded.'); } } catch { localStorage.removeItem(STORAGE_KEY); toast.error('Saved draft was corrupted and has been discarded.'); }
       }
     }
-  }, [cloneFromId]);
+  }, [cloneFromId, toast]);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -170,7 +177,9 @@ export default function NewWillPage() {
       const draft = localStorage.getItem(STORAGE_KEY);
       if (draft) {
         try {
-          const state: FormState = JSON.parse(draft);
+          const parsed: unknown = JSON.parse(draft);
+          if (!isValidDraft(parsed)) { localStorage.removeItem(STORAGE_KEY); toast.error('Saved draft was invalid and has been discarded.'); return; }
+          const state = parsed;
           setStep(state.step);
           setToken(state.token);
           setAmount(state.amount);
@@ -312,6 +321,11 @@ export default function NewWillPage() {
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
+    if (!Number.isInteger(checkinPeriodDays) || checkinPeriodDays <= 0 || !Number.isInteger(gracePeriodDays) || gracePeriodDays <= 0) {
+      setError('Check-in and grace periods must be positive whole numbers.');
+      setSubmitting(false);
+      return;
+    }
     
     // Validate guardians before submission
     if (guardianTopError !== null) {
@@ -501,9 +515,10 @@ export default function NewWillPage() {
                   min={1}
                   max={3650}
                   value={checkinPeriodDays}
+                  step={1}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val > 0) {
+                    const val = Number(e.target.value);
+                    if (Number.isInteger(val) && val > 0) {
                       setCheckinPeriodDays(val);
                     }
                   }}
@@ -549,9 +564,10 @@ export default function NewWillPage() {
                   min={1}
                   max={3650}
                   value={gracePeriodDays}
+                  step={1}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val > 0) {
+                    const val = Number(e.target.value);
+                    if (Number.isInteger(val) && val > 0) {
                       setGracePeriodDays(val);
                     }
                   }}
