@@ -138,8 +138,7 @@
     "couldNotLoad": "No se pudo cargar este testamento",
     "releaseEarlyTitle": "Liberar anticipadamente al beneficiario",
     "amountUSDC": "Monto (USDC)",
-    "recipientAddress": "Dirección del destinatario",
-    "earlyReleaseComingSoon": "Nota: La liberación parcial anticipada requiere soporte del SDK (próximamente)"
+    "recipientAddress": "Dirección del destinatario"
   },
   "status": {
     "active": "Activo",
