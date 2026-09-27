@@ -638,6 +638,7 @@ export default function NewWillPage() {
               rowErrors={guardianRowErrors}
               topError={guardianTopError}
               blankGuardianIndices={blankGuardianIndices}
+              ownerAddress={ownerAddress}
               onAdd={addGuardian}
               onRemove={removeGuardian}
               onUpdate={updateGuardian}

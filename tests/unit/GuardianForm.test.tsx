@@ -153,3 +153,27 @@ describe('GuardianForm — validation display', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Not a valid Stellar address');
   });
 });
+
+describe('GuardianForm — owner address as guardian (#386)', () => {
+  const OWNER = 'GBRT6OQL3NICNKX6FFDVAZ36IABM5EB7HDNRPQ4QEMK4TJAUUMFYNFXB';
+  const OTHER = 'GDMALMOLFTCHCB74BAEZLLXFXQK57JE4BTFS2C3WJGSVF4637PRHII5S';
+
+  it('rejects a row matching the owner address', () => {
+    render(<GuardianForm {...baseProps([OWNER])} ownerAddress={OWNER} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('You cannot be your own guardian');
+    expect(screen.getByLabelText('Guardian 1 address')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('highlights only the owner row among already-added guardians', () => {
+    render(<GuardianForm {...baseProps([OTHER, ` ${OWNER} `])} ownerAddress={OWNER} />);
+    expect(screen.getByLabelText('Guardian 1 address')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByLabelText('Guardian 2 address')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('accepts all non-owner addresses', () => {
+    render(<GuardianForm {...baseProps([OTHER])} ownerAddress={OWNER} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Guardian 1 address')).not.toHaveAttribute('aria-invalid');
+  });
+});
