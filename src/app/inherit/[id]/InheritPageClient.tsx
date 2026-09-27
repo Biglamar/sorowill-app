@@ -16,6 +16,25 @@ function isValidWillId(id: string): boolean {
   return /^\d+$/.test(id);
 }
 
+// In-flight getWill requests keyed by will ID. Concurrent callers for the same
+// ID (re-renders, StrictMode double-mount, rapid retries) share one RPC call
+// instead of each hitting the network.
+const inFlightWills = new Map<string, Promise<Will>>();
+
+export function fetchWillDeduped(willId: string): Promise<Will> {
+  const existing = inFlightWills.get(willId);
+  if (existing) {
+    return existing;
+  }
+  const request = getSoroWillClient()
+    .getWill(willId)
+    .finally(() => {
+      inFlightWills.delete(willId);
+    });
+  inFlightWills.set(willId, request);
+  return request;
+}
+
 export default function InheritPageClient({ id }: { id: string }) {
   const toast = useToast();
   const willId = id;
@@ -36,25 +55,29 @@ export default function InheritPageClient({ id }: { id: string }) {
     };
   }, []);
 
-  const refetch = useCallback(async () => {
-    try {
-      const fetched = await getSoroWillClient().getWill(willId);
-      if (!isMounted.current) {
-        return;
+  const refetch = useCallback(
+    async (signal?: AbortSignal) => {
+      const isActive = () => isMounted.current && !signal?.aborted;
+      try {
+        const fetched = await fetchWillDeduped(willId);
+        if (!isActive()) {
+          return;
+        }
+        setWill(fetched);
+        setError(null);
+      } catch (err) {
+        if (!isActive()) {
+          return;
+        }
+        setError(formatError(err));
+      } finally {
+        if (isActive()) {
+          setLoading(false);
+        }
       }
-      setWill(fetched);
-      setError(null);
-    } catch (err) {
-      if (!isMounted.current) {
-        return;
-      }
-      setError(formatError(err));
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
-    }
-  }, [willId]);
+    },
+    [willId],
+  );
 
   useEffect(() => {
     void safeGetPublicKey().then((key) => {
@@ -65,8 +88,19 @@ export default function InheritPageClient({ id }: { id: string }) {
   }, []);
 
   useEffect(() => {
-    void refetch();
-  }, [refetch]);
+    if (!isValidWillId(willId)) {
+      return;
+    }
+    // Cancel (ignore) the in-flight request when willId changes or on unmount
+    // so stale responses never land in state.
+    const controller = new AbortController();
+    setLoading(true);
+    void refetch(controller.signal);
+    return () => {
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch is derived solely from willId
+  }, [willId]);
 
   // Quick client-side validation before hitting the RPC layer
   if (!isValidWillId(willId)) {
