@@ -59,22 +59,49 @@ export function getNetwork(): SoroWillNetwork {
   return validateStellarNetwork(value);
 }
 
-/** The deployed SoroWill contract address configured for this deployment. */
-export function getContractId(): string {
-  const network = getNetwork();
-  let contractId: string;
+/**
+ * Resolves the SoroWill contract address for an explicit network.
+ *
+ * Mainnet is strict: it requires `NEXT_PUBLIC_CONTRACT_ID_MAINNET` and will
+ * NOT fall back to the generic `NEXT_PUBLIC_CONTRACT_ID`, because that
+ * variable is typically set to a testnet contract on single-contract
+ * deployments. Silently reusing it on mainnet would point calls at a
+ * nonexistent or unrelated contract (see issue #345).
+ *
+ * Testnet prefers `NEXT_PUBLIC_CONTRACT_ID_TESTNET` but keeps the generic
+ * `NEXT_PUBLIC_CONTRACT_ID` as a backward-compatible fallback for existing
+ * testnet-only deployments.
+ */
+function getContractIdForNetwork(network: SoroWillNetwork): string {
+  let contractId: string | undefined;
+
   if (network === 'mainnet') {
-    contractId = process.env.NEXT_PUBLIC_CONTRACT_ID_MAINNET || process.env.NEXT_PUBLIC_CONTRACT_ID || '';
+    contractId = process.env.NEXT_PUBLIC_CONTRACT_ID_MAINNET;
+    if (!contractId) {
+      throw new Error(
+        'Missing required environment variable for mainnet: NEXT_PUBLIC_CONTRACT_ID_MAINNET. ' +
+          'Refusing to fall back to NEXT_PUBLIC_CONTRACT_ID because it may point at a different ' +
+          "network's contract. Set NEXT_PUBLIC_CONTRACT_ID_MAINNET in .env.local (see .env.example).",
+      );
+    }
   } else {
-    contractId = process.env.NEXT_PUBLIC_CONTRACT_ID_TESTNET || process.env.NEXT_PUBLIC_CONTRACT_ID || '';
+    contractId =
+      process.env.NEXT_PUBLIC_CONTRACT_ID_TESTNET || process.env.NEXT_PUBLIC_CONTRACT_ID;
+    if (!contractId) {
+      throw new Error(
+        'Missing required environment variable for testnet: NEXT_PUBLIC_CONTRACT_ID_TESTNET ' +
+          '(or the legacy NEXT_PUBLIC_CONTRACT_ID). Copy .env.example to .env.local and fill it in.',
+      );
+    }
   }
-  if (!contractId) {
-    throw new Error(
-      'Missing required environment variable: NEXT_PUBLIC_CONTRACT_ID (or NEXT_PUBLIC_CONTRACT_ID_MAINNET/NEXT_PUBLIC_CONTRACT_ID_TESTNET). Copy .env.example to .env.local and fill it in.',
-    );
-  }
+
   validateContractId(contractId);
   return contractId;
+}
+
+/** The deployed SoroWill contract address for the active network. */
+export function getContractId(): string {
+  return getContractIdForNetwork(getNetwork());
 }
 
 /** The Soroban RPC URL configured for this deployment, for display/linking purposes. */
@@ -211,3 +238,8 @@ export async function enumerateAllWills(): Promise<Will[]> {
 }
 
 
+// The Soroban contract supports a maximum of 3 guardians per will.
+// @sorowill/sdk does not export this constant, so we define it here.
+export const MAX_GUARDIANS = 3;
+
+export const GUARDIAN_THRESHOLD = 2;
