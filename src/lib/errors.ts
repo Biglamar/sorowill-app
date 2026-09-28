@@ -114,3 +114,9 @@ export function formatError(error: unknown): string {
 
   return 'Something went wrong. Please try again later.';
 }
+
+/** Safe copy for initial page data loads; never exposes SDK/RPC details. */
+export function formatLoadError(error: unknown): string {
+  if (error instanceof Error && /permission|unauthoriz|forbidden/i.test(error.message)) return 'You do not have permission to view this will.';
+  return 'Could not load will — check your connection.';
+}

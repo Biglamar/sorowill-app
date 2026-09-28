@@ -59,6 +59,11 @@ function OnboardContent() {
 
   useEffect(() => {
     if (!willId) return;
+    if (!/^\d+$/.test(willId) || Number(willId) < 0) {
+      setError('Invalid will ID. Please use a non-negative integer.');
+      setWill(null);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -97,7 +102,7 @@ function OnboardContent() {
 
         <div className="grid gap-4 mt-4 sm:grid-cols-2">
           <div className="p-4 rounded-lg bg-white/5 border border-white/5">
-            <h3 className="text-sm font-semibold text-will-light">1. missed check-ins</h3>
+            <h3 className="text-sm font-semibold text-will-light">1. Missed check-ins</h3>
             <p className="mt-1 text-xs text-will-light/60">
               If the owner misses their check-in, anyone can trigger the grace period. You should stay in contact to check if they are okay.
             </p>

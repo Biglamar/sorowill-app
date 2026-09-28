@@ -8,7 +8,7 @@ import { formatUSDC, toStroops, validateBeneficiaries, type Beneficiary } from '
 import { truncateAddress, safeGetPublicKey } from '@/lib/freighter';
 import { getSoroWillClient } from '@/lib/sorowill';
 import { GUARDIAN_THRESHOLD, MAX_GUARDIANS } from '@/lib/constants';
-import { formatError } from '@/lib/errors';
+import { formatError, isWillNotFoundMessage } from '@/lib/errors';
 import { isFederatedAddress, resolveFederatedAddress } from '@/lib/federated';
 import { getUserBalance } from '@/lib/balance';
 import { isValidAmount } from '@/lib/amount';
@@ -37,6 +37,15 @@ interface FormState {
   checkinPeriodDays: number;
   gracePeriodDays: number;
   guardians: string[];
+}
+
+export function isValidDraft(value: unknown): value is FormState {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as FormState;
+  return Number.isInteger(draft.step) && draft.step >= 0 && draft.step < STEP_LABELS.length &&
+    typeof draft.token === 'string' && typeof draft.amount === 'string' && Array.isArray(draft.beneficiaries) &&
+    Number.isInteger(draft.checkinPeriodDays) && draft.checkinPeriodDays > 0 &&
+    Number.isInteger(draft.gracePeriodDays) && draft.gracePeriodDays > 0 && Array.isArray(draft.guardians);
 }
 
 /** True when a check-in period exceeds the contract's safe storage TTL window. */
@@ -115,7 +124,7 @@ export default function NewWillPage() {
         }
       }
     }
-  }, [cloneFromId]);
+  }, [cloneFromId, toast]);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -159,7 +168,7 @@ export default function NewWillPage() {
     if (cloneFromId) {
       setCloneLoading(true);
       getSoroWillClient()
-        .getWill(cloneFromId)
+      .getWill(cloneFromId)
         .then((sourceWill) => {
           setToken(sourceWill.token);
           setBeneficiaries(sourceWill.beneficiaries);
@@ -169,7 +178,15 @@ export default function NewWillPage() {
           setCloneLoading(false);
         })
         .catch((err) => {
-          setError(formatError(err));
+          const raw = err instanceof Error ? err.message.toLowerCase() : '';
+          const message = /permission|unauthoriz|forbidden|access denied/.test(raw)
+            ? 'You no longer have access to this will.'
+            : isWillNotFoundMessage(raw)
+              ? 'Will has been deleted.'
+              : /network|fetch|timeout/.test(raw)
+                ? 'Unable to fetch will — try again.'
+                : formatError(err);
+          setError(message);
           setCloneLoading(false);
         });
     }
@@ -340,6 +357,11 @@ export default function NewWillPage() {
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
+    if (!Number.isInteger(checkinPeriodDays) || checkinPeriodDays <= 0 || !Number.isInteger(gracePeriodDays) || gracePeriodDays <= 0) {
+      setError('Check-in and grace periods must be positive whole numbers.');
+      setSubmitting(false);
+      return;
+    }
     
     // Validate guardians before submission
     if (guardianTopError !== null) {
@@ -530,6 +552,7 @@ export default function NewWillPage() {
                   max={3650}
                   step={1}
                   value={checkinPeriodDays}
+                  step={1}
                   onChange={(e) => {
                     setCheckinPeriodError(null);
                     const parsed = parsePeriodInput(e.target.value);
@@ -596,6 +619,7 @@ export default function NewWillPage() {
                   max={3650}
                   step={1}
                   value={gracePeriodDays}
+                  step={1}
                   onChange={(e) => {
                     setGracePeriodError(null);
                     const parsed = parsePeriodInput(e.target.value);

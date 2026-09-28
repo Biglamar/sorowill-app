@@ -6,7 +6,7 @@ import { calculateShares, formatUSDC, WillStatus, type Will } from '@sorowill/sd
 
 import { safeGetPublicKey, truncateAddress } from '@/lib/freighter';
 import { getSoroWillClient, stellarExpertUrl } from '@/lib/sorowill';
-import { formatError } from '@/lib/errors';
+import { formatError, formatLoadError } from '@/lib/errors';
 import { graceDeadline } from '@/lib/deadlines';
 import { useToast } from '@/components/Toast';
 import { StatusBanner } from '@/components/StatusBanner';
@@ -48,8 +48,8 @@ export default function InheritPageClient({ id }: { id: string }) {
       if (!isMounted.current) {
         return;
       }
-      console.error('[InheritPage] Failed to load will:', err);
-      setError(formatError(err));
+      console.error('Failed to load inheritance will', err);
+      setError(formatLoadError(err));
     } finally {
       if (isMounted.current) {
         setLoading(false);

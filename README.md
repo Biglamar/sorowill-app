@@ -38,7 +38,8 @@ cd sorowill-app
 #   volta install  (volta)
 npm install
 cp .env.example .env.local
-# fill in NEXT_PUBLIC_CONTRACT_ID with your deployed SoroWill contract address
+# fill in NEXT_PUBLIC_CONTRACT_ID_TESTNET (and NEXT_PUBLIC_CONTRACT_ID_MAINNET
+# if you're targeting mainnet) with your deployed SoroWill contract address
 npm run dev
 ```
 
@@ -49,7 +50,9 @@ npm run dev
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_STELLAR_NETWORK` | Stellar network to connect to: `testnet` or `mainnet` |
-| `NEXT_PUBLIC_CONTRACT_ID` | Address of the deployed SoroWill contract |
+| `NEXT_PUBLIC_CONTRACT_ID_MAINNET` | Address of the deployed SoroWill contract on mainnet. **Required** when the network is mainnet; there is no fallback. |
+| `NEXT_PUBLIC_CONTRACT_ID_TESTNET` | Address of the deployed SoroWill contract on testnet (preferred). |
+| `NEXT_PUBLIC_CONTRACT_ID` | Legacy single-var fallback. Used only on testnet when `NEXT_PUBLIC_CONTRACT_ID_TESTNET` is unset. Never used on mainnet. |
 | `NEXT_PUBLIC_RPC_URL` | Soroban RPC endpoint (defaults to the public testnet RPC) |
 | `RESEND_API_KEY` | API key for reminder emails (optional; leave unset to skip sending) |
 | `RESEND_FROM_EMAIL` | Verified Resend sender address used for reminder emails |
