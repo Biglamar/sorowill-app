@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { getTokenDecimals, formatTokenBalance } from '@/lib/tokenDecimals';
+import { describe, it, expect, afterEach } from 'vitest';
+import {
+  getTokenDecimals,
+  formatTokenBalance,
+  clearTokenDecimalsCache,
+} from '@/lib/tokenDecimals';
 
 describe('getTokenDecimals', () => {
   it('resolves testnet USDC to 6 decimals', () => {
@@ -11,6 +15,35 @@ describe('getTokenDecimals', () => {
   it('falls back to 7 decimals for unrecognised token contract addresses', () => {
     const unknownToken = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4';
     expect(getTokenDecimals(unknownToken)).toBe(7);
+  });
+});
+
+describe('getTokenDecimals network scoping', () => {
+  const testnetUsdc = 'CCW67HTGNFMXKFGRR2MKRB2V6DNFGBLXJOFKLDLNOICL5UX4YK7CPLAA';
+  const mainnetUsdc = 'CBIELTK6YBZBBFXDGBTNMWCFMHBZLKR5CBKNTW6YCJLIBDWXBVJSF7FD';
+
+  afterEach(() => {
+    window.localStorage.removeItem('sorowill_network');
+    clearTokenDecimalsCache();
+  });
+
+  it('resolves decimals per network for an explicit network argument', () => {
+    expect(getTokenDecimals(testnetUsdc, 'testnet')).toBe(6);
+    expect(getTokenDecimals(testnetUsdc, 'mainnet')).toBe(7);
+    expect(getTokenDecimals(mainnetUsdc, 'mainnet')).toBe(6);
+    expect(getTokenDecimals(mainnetUsdc, 'testnet')).toBe(7);
+  });
+
+  it('does not serve a stale value after the active network switches', () => {
+    window.localStorage.setItem('sorowill_network', 'testnet');
+    expect(getTokenDecimals(testnetUsdc)).toBe(6);
+
+    window.localStorage.setItem('sorowill_network', 'mainnet');
+    expect(getTokenDecimals(testnetUsdc)).toBe(7);
+    expect(getTokenDecimals(mainnetUsdc)).toBe(6);
+
+    window.localStorage.setItem('sorowill_network', 'testnet');
+    expect(getTokenDecimals(testnetUsdc)).toBe(6);
   });
 });
 

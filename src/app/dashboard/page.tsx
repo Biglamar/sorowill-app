@@ -110,10 +110,14 @@ export default function DashboardPage() {
     };
   }, []);
 
+  const handleShortcutNewWill = useCallback(() => router.push('/will/new'), [router]);
+  const handleShortcutSearch = useCallback(() => searchInputRef.current?.focus(), []);
+  const handleShortcutHelp = useCallback(() => setShowShortcutsHelp((prev) => !prev), []);
+
   useKeyboardShortcuts({
-    onNewWill: () => router.push('/will/new'),
-    onSearch: () => searchInputRef.current?.focus(),
-    onHelp: () => setShowShortcutsHelp((prev) => !prev),
+    onNewWill: handleShortcutNewWill,
+    onSearch: handleShortcutSearch,
+    onHelp: handleShortcutHelp,
   });
 
   const loadWills = useCallback(async (owner: string) => {
@@ -595,9 +599,9 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center pt-2 border-t border-white/10">
             <span className="text-sm font-semibold text-will-light">
               Total Amount:{' '}
-              {Object.values(batchAmounts)
-                .reduce((sum, val) => sum + (Number(val) || 0), 0)
-                .toFixed(2)}{' '}
+              {formatAmount(
+                Object.values(batchAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0),
+              )}{' '}
               USDC
               {invalidBatchWillIds.length > 0 && (
                 <span className="block text-xs font-normal text-red-400">
