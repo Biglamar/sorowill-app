@@ -2,6 +2,8 @@
 
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
+import { themeCookie } from '@/lib/theme';
+
 type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
@@ -51,6 +53,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } catch {
       /* storage unavailable (e.g. privacy mode) - theme still applies for this session */
     }
+    document.cookie = themeCookie(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 

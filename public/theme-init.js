@@ -5,7 +5,11 @@
 (function () {
   try {
     var t = localStorage.getItem('theme');
-    if (t !== 'light' && t !== 'dark') {
+    if (t === 'light' || t === 'dark') {
+      // Mirror the saved preference into a cookie so the server can render
+      // data-theme on the next load (see src/lib/theme.ts).
+      document.cookie = 'theme=' + t + '; path=/; max-age=31536000; samesite=lax';
+    } else {
       t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
     document.documentElement.setAttribute('data-theme', t);
