@@ -92,6 +92,14 @@ export function loadDraft(storage: Pick<Storage, 'getItem' | 'removeItem'>): Dra
   return { status: 'valid', draft };
 }
 
+/**
+ * Removes the saved draft. Called after a will is created and when the wallet
+ * disconnects, so a finished or another account's draft is never offered.
+ */
+export function clearDraft(storage: Pick<Storage, 'removeItem'>): void {
+  storage.removeItem(DRAFT_STORAGE_KEY);
+}
+
 // ---------------------------------------------------------------------------
 // Period-value helpers (shared between the form and unit tests)
 // ---------------------------------------------------------------------------

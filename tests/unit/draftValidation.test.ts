@@ -4,11 +4,13 @@
  * Covers issues #411/#439 (parsePeriodInput edge cases) and
  * #438 (isValidDraft / parseDraft: valid, invalid, and missing draft scenarios).
  * #409 (loadDraft: validate before use, discard invalid drafts from storage).
+ * #410 (clearDraft: draft removed after submission / wallet disconnect).
  */
 
 import { beforeEach, describe, it, expect } from 'vitest';
 import {
   DRAFT_STORAGE_KEY,
+  clearDraft,
   isValidDraft,
   loadDraft,
   parseDraft,
@@ -267,5 +269,32 @@ describe('loadDraft', () => {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(stale));
     expect(loadDraft(localStorage)).toEqual({ status: 'invalid', draft: null });
     expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// clearDraft — #410
+// ---------------------------------------------------------------------------
+
+describe('clearDraft', () => {
+  it('removes a saved draft so it is not offered again', () => {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(VALID_DRAFT));
+    clearDraft(localStorage);
+    expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+    expect(loadDraft(localStorage).status).toBe('missing');
+  });
+
+  it('is a no-op when no draft exists', () => {
+    localStorage.clear();
+    expect(() => clearDraft(localStorage)).not.toThrow();
+    expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
+  it('leaves unrelated keys alone', () => {
+    localStorage.setItem('other-key', 'keep');
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(VALID_DRAFT));
+    clearDraft(localStorage);
+    expect(localStorage.getItem('other-key')).toBe('keep');
+    localStorage.removeItem('other-key');
   });
 });

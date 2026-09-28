@@ -18,6 +18,7 @@ import { validateGuardians } from '@/lib/guardianValidation';
 import { useStableRowIds } from '@/lib/useStableRowIds';
 import {
   DRAFT_STORAGE_KEY,
+  clearDraft,
   loadDraft,
   parsePeriodInput,
   type FormStateDraft,
@@ -152,7 +153,8 @@ export default function NewWillPage() {
     const interval = setInterval(() => {
       void safeGetPublicKey().then((key) => {
         if (key === null && typeof window !== 'undefined') {
-          localStorage.removeItem(STORAGE_KEY);
+          clearDraft(localStorage);
+          pendingDraftRef.current = null;
           setResumeAvailable(false);
         }
       });
@@ -369,7 +371,7 @@ export default function NewWillPage() {
         guardians: getSubmittedGuardians(guardians, resolvedGuardians, stableGuardianIds),
       });
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
+        clearDraft(localStorage);
       }
       router.push(`/will/${willId}`);
     } catch (err) {
