@@ -59,10 +59,22 @@ export function getNetwork(): SoroWillNetwork {
   return validateStellarNetwork(value);
 }
 
-/** The deployed SoroWill contract address configured for this deployment. */
-export function getContractId(): string {
-  const network = getNetwork();
-  let contractId: string;
+/**
+ * Resolves the SoroWill contract address for an explicit network.
+ *
+ * Mainnet is strict: it requires `NEXT_PUBLIC_CONTRACT_ID_MAINNET` and will
+ * NOT fall back to the generic `NEXT_PUBLIC_CONTRACT_ID`, because that
+ * variable is typically set to a testnet contract on single-contract
+ * deployments. Silently reusing it on mainnet would point calls at a
+ * nonexistent or unrelated contract (see issue #345).
+ *
+ * Testnet prefers `NEXT_PUBLIC_CONTRACT_ID_TESTNET` but keeps the generic
+ * `NEXT_PUBLIC_CONTRACT_ID` as a backward-compatible fallback for existing
+ * testnet-only deployments.
+ */
+function getContractIdForNetwork(network: SoroWillNetwork): string {
+  let contractId: string | undefined;
+
   if (network === 'mainnet') {
     // Mainnet is strict: never silently fall back to the generic
     // NEXT_PUBLIC_CONTRACT_ID, which is almost certainly a testnet address.
@@ -89,8 +101,14 @@ export function getContractId(): string {
       );
     }
   }
+
   validateContractId(contractId);
   return contractId;
+}
+
+/** The deployed SoroWill contract address for the active network. */
+export function getContractId(): string {
+  return getContractIdForNetwork(getNetwork());
 }
 
 /** The Soroban RPC URL configured for this deployment, for display/linking purposes. */
@@ -227,3 +245,8 @@ export async function enumerateAllWills(): Promise<Will[]> {
 }
 
 
+// The Soroban contract supports a maximum of 3 guardians per will.
+// @sorowill/sdk does not export this constant, so we define it here.
+export const MAX_GUARDIANS = 3;
+
+export const GUARDIAN_THRESHOLD = 2;
