@@ -8,7 +8,7 @@ import { formatUSDC, toStroops, validateBeneficiaries, type Beneficiary } from '
 import { truncateAddress, safeGetPublicKey } from '@/lib/freighter';
 import { getSoroWillClient } from '@/lib/sorowill';
 import { GUARDIAN_THRESHOLD, MAX_GUARDIANS } from '@/lib/constants';
-import { formatError } from '@/lib/errors';
+import { formatError, isWillNotFoundMessage } from '@/lib/errors';
 import { isFederatedAddress, resolveFederatedAddress } from '@/lib/federated';
 import { getUserBalance } from '@/lib/balance';
 import { isValidAmount } from '@/lib/amount';
@@ -16,6 +16,8 @@ import { BeneficiaryForm } from '@/components/BeneficiaryForm';
 import { GuardianForm } from '@/components/GuardianForm';
 import { validateGuardians } from '@/lib/guardianValidation';
 import { useStableRowIds } from '@/lib/useStableRowIds';
+import { parseDraft, parsePeriodInput } from '@/lib/draftValidation';
+import { useToast } from '@/components/Toast';
 
 const CHECKIN_OPTIONS = [30, 60, 90, 180, 365];
 const GRACE_OPTIONS = [3, 7, 14];
@@ -35,6 +37,15 @@ interface FormState {
   checkinPeriodDays: number;
   gracePeriodDays: number;
   guardians: string[];
+}
+
+export function isValidDraft(value: unknown): value is FormState {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as FormState;
+  return Number.isInteger(draft.step) && draft.step >= 0 && draft.step < STEP_LABELS.length &&
+    typeof draft.token === 'string' && typeof draft.amount === 'string' && Array.isArray(draft.beneficiaries) &&
+    Number.isInteger(draft.checkinPeriodDays) && draft.checkinPeriodDays > 0 &&
+    Number.isInteger(draft.gracePeriodDays) && draft.gracePeriodDays > 0 && Array.isArray(draft.guardians);
 }
 
 /** True when a check-in period exceeds the contract's safe storage TTL window. */
@@ -72,6 +83,7 @@ export default function NewWillPage() {
   const [gracePeriodDays, setGracePeriodDays] = useState(7);
   const [guardians, setGuardians] = useState<string[]>([]);
   const [cloneLoading, setCloneLoading] = useState(false);
+  const [cloneError, setCloneError] = useState<CloneErrorKind | null>(null);
   const [resumeAvailable, setResumeAvailable] = useState(false);
 
   const stableGuardianIds = useStableRowIds(guardians.length);
@@ -89,6 +101,10 @@ export default function NewWillPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkinPeriodError, setCheckinPeriodError] = useState<string | null>(null);
+  const [gracePeriodError, setGracePeriodError] = useState<string | null>(null);
+
+  const toast = useToast();
 
   // Fetch the connected wallet address once so we can reject it as a guardian.
   useEffect(() => {
@@ -97,16 +113,19 @@ export default function NewWillPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const draft = localStorage.getItem(STORAGE_KEY);
-      if (draft && !cloneFromId) {
-        try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw && !cloneFromId) {
+        const draft = parseDraft(raw);
+        if (draft) {
           setResumeAvailable(true);
-        } catch {
-          setResumeAvailable(false);
+        } else {
+          // Corrupted / stale draft — discard silently here; the user will see
+          // the toast once the component has finished mounting.
+          localStorage.removeItem(STORAGE_KEY);
         }
       }
     }
-  }, [cloneFromId]);
+  }, [cloneFromId, toast]);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -127,11 +146,30 @@ export default function NewWillPage() {
     void fetchBalance();
   }, []);
 
+  // Clear the draft when the wallet disconnects so stale state is never
+  // re-loaded by a different account in the same browser session.
+  useEffect(() => {
+    if (ownerAddress === null) return; // not yet resolved
+
+    // Poll Freighter every 2 s; when the key disappears the user has
+    // disconnected.  safeGetPublicKey already suppresses all errors.
+    const interval = setInterval(() => {
+      void safeGetPublicKey().then((key) => {
+        if (key === null && typeof window !== 'undefined') {
+          localStorage.removeItem(STORAGE_KEY);
+          setResumeAvailable(false);
+        }
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [ownerAddress]);
+
   useEffect(() => {
     if (cloneFromId) {
       setCloneLoading(true);
       getSoroWillClient()
-        .getWill(cloneFromId)
+      .getWill(cloneFromId)
         .then((sourceWill) => {
           setToken(sourceWill.token);
           setBeneficiaries(sourceWill.beneficiaries);
@@ -141,7 +179,15 @@ export default function NewWillPage() {
           setCloneLoading(false);
         })
         .catch((err) => {
-          setError(formatError(err));
+          const raw = err instanceof Error ? err.message.toLowerCase() : '';
+          const message = /permission|unauthoriz|forbidden|access denied/.test(raw)
+            ? 'You no longer have access to this will.'
+            : isWillNotFoundMessage(raw)
+              ? 'Will has been deleted.'
+              : /network|fetch|timeout/.test(raw)
+                ? 'Unable to fetch will — try again.'
+                : formatError(err);
+          setError(message);
           setCloneLoading(false);
         });
     }
@@ -167,21 +213,21 @@ export default function NewWillPage() {
 
   function resumeDraft() {
     if (typeof window !== 'undefined') {
-      const draft = localStorage.getItem(STORAGE_KEY);
-      if (draft) {
-        try {
-          const state: FormState = JSON.parse(draft);
-          setStep(state.step);
-          setToken(state.token);
-          setAmount(state.amount);
-          setBeneficiaries(state.beneficiaries);
-          setCheckinPeriodDays(state.checkinPeriodDays);
-          setGracePeriodDays(state.gracePeriodDays);
-          setGuardians(state.guardians);
-          setResumeAvailable(false);
-        } catch {
-          setError('Failed to resume draft');
-        }
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const state = parseDraft(raw);
+      if (state) {
+        setStep(state.step);
+        setToken(state.token);
+        setAmount(state.amount);
+        setBeneficiaries(state.beneficiaries);
+        setCheckinPeriodDays(state.checkinPeriodDays);
+        setGracePeriodDays(state.gracePeriodDays);
+        setGuardians(state.guardians);
+        setResumeAvailable(false);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+        setResumeAvailable(false);
+        toast.info('Saved draft was invalid and has been discarded.');
       }
     }
   }
@@ -204,7 +250,7 @@ export default function NewWillPage() {
   // warning, not a blocking error — the user sees the warning and can proceed).
   const guardiansValid = guardianTopError === null;
 
-  const canGoNext = [isAmountValid, beneficiariesValid, true, guardiansValid, true][step];
+  const canGoNext = [isAmountValid, beneficiariesValid, checkinPeriodError === null && gracePeriodError === null, guardiansValid, true][step];
 
   // Rows that are blank — the user will see a warning that they'll be dropped.
   const blankGuardianIndices = guardians
@@ -312,6 +358,18 @@ export default function NewWillPage() {
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
+    if (!Number.isInteger(checkinPeriodDays) || checkinPeriodDays <= 0 || !Number.isInteger(gracePeriodDays) || gracePeriodDays <= 0) {
+      setError('Check-in and grace periods must be positive whole numbers.');
+      setSubmitting(false);
+      return;
+    }
+    
+    // Validate guardians before submission
+    if (guardianTopError !== null) {
+      setError('Please fix the guardian address errors before submitting.');
+      setSubmitting(false);
+      return;
+    }
 
     try {
       // Validate guardians before submission
@@ -398,7 +456,68 @@ export default function NewWillPage() {
         </div>
       )}
 
-      {!cloneLoading && (
+      {cloneError && (
+        <div
+          className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center"
+          role="alert"
+          data-testid="clone-error"
+        >
+          <h2 className="text-base font-semibold text-red-300">
+            {cloneError === 'not_found' && 'Will has been deleted'}
+            {cloneError === 'permission' && 'Access denied'}
+            {cloneError === 'network' && 'Connection error'}
+            {cloneError === 'unknown' && 'Could not load will'}
+          </h2>
+          <p className="mt-2 text-sm text-red-300/70">
+            {cloneError === 'not_found' &&
+              'Will has been deleted — it no longer exists on chain.'}
+            {cloneError === 'permission' &&
+              'You no longer have access to this will.'}
+            {cloneError === 'network' &&
+              'Unable to fetch will — check your connection and try again.'}
+            {cloneError === 'unknown' &&
+              'The source will could not be loaded. Please go back and try again.'}
+          </p>
+          <div className="mt-4 flex justify-center gap-3">
+            {cloneError === 'network' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCloneError(null);
+                  setCloneLoading(true);
+                  getSoroWillClient()
+                    .getWill(cloneFromId!)
+                    .then((sourceWill) => {
+                      setToken(sourceWill.token);
+                      setBeneficiaries(sourceWill.beneficiaries);
+                      setCheckinPeriodDays(sourceWill.checkinPeriodDays);
+                      setGracePeriodDays(sourceWill.gracePeriodDays);
+                      setGuardians(sourceWill.guardians);
+                      setCloneLoading(false);
+                    })
+                    .catch((err) => {
+                      console.error('[NewWillPage] Clone retry failed:', err);
+                      setCloneError(classifyCloneError(err));
+                      setCloneLoading(false);
+                    });
+                }}
+                className="rounded-full bg-will-purple px-4 py-2 text-sm font-medium text-white transition hover:bg-will-purple/90"
+              >
+                Try again
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="rounded-full border border-red-400/40 px-4 py-2 text-sm text-red-300 transition hover:border-red-400/70"
+            >
+              Go back
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!cloneLoading && !cloneError && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-6">
         {step === 0 ? (
           <div className="space-y-4">
@@ -499,16 +618,35 @@ export default function NewWillPage() {
                   type="number"
                   min={1}
                   max={3650}
+                  step={1}
                   value={checkinPeriodDays}
+                  step={1}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val > 0) {
-                      setCheckinPeriodDays(val);
+                    setCheckinPeriodError(null);
+                    const parsed = parsePeriodInput(e.target.value);
+                    if (parsed !== null) {
+                      setCheckinPeriodDays(parsed);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const parsed = parsePeriodInput(e.target.value);
+                    if (parsed === null) {
+                      setCheckinPeriodError('Please enter a whole number of days between 1 and 3650.');
+                    } else {
+                      setCheckinPeriodError(null);
+                      setCheckinPeriodDays(parsed);
                     }
                   }}
                   placeholder="Enter days"
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-will-light placeholder:text-will-light/40 focus:border-will-purple focus:outline-none"
+                  aria-describedby={checkinPeriodError ? 'checkin-period-error' : undefined}
+                  aria-invalid={checkinPeriodError !== null}
+                  className={`rounded-lg border bg-white/5 px-3 py-2 text-sm text-will-light placeholder:text-will-light/40 focus:border-will-purple focus:outline-none ${checkinPeriodError ? 'border-red-400' : 'border-white/10'}`}
                 />
+                {checkinPeriodError ? (
+                  <p id="checkin-period-error" role="alert" className="text-xs text-red-400">
+                    {checkinPeriodError}
+                  </p>
+                ) : null}
               </div>
               {isUnsafeCheckinPeriod(checkinPeriodDays) && (
                 <div className="rounded-lg border border-amber-400/40 bg-amber-400/5 px-3 py-3" role="status">
@@ -547,16 +685,35 @@ export default function NewWillPage() {
                   type="number"
                   min={1}
                   max={3650}
+                  step={1}
                   value={gracePeriodDays}
+                  step={1}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val > 0) {
-                      setGracePeriodDays(val);
+                    setGracePeriodError(null);
+                    const parsed = parsePeriodInput(e.target.value);
+                    if (parsed !== null) {
+                      setGracePeriodDays(parsed);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const parsed = parsePeriodInput(e.target.value);
+                    if (parsed === null) {
+                      setGracePeriodError('Please enter a whole number of days between 1 and 3650.');
+                    } else {
+                      setGracePeriodError(null);
+                      setGracePeriodDays(parsed);
                     }
                   }}
                   placeholder="Enter days"
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-will-light placeholder:text-will-light/40 focus:border-will-purple focus:outline-none"
+                  aria-describedby={gracePeriodError ? 'grace-period-error' : undefined}
+                  aria-invalid={gracePeriodError !== null}
+                  className={`rounded-lg border bg-white/5 px-3 py-2 text-sm text-will-light placeholder:text-will-light/40 focus:border-will-purple focus:outline-none ${gracePeriodError ? 'border-red-400' : 'border-white/10'}`}
                 />
+                {gracePeriodError ? (
+                  <p id="grace-period-error" role="alert" className="text-xs text-red-400">
+                    {gracePeriodError}
+                  </p>
+                ) : null}
               </div>
             </div>
           </fieldset>
@@ -573,6 +730,7 @@ export default function NewWillPage() {
               rowErrors={guardianRowErrors}
               topError={guardianTopError}
               blankGuardianIndices={blankGuardianIndices}
+              ownerAddress={ownerAddress}
               onAdd={addGuardian}
               onRemove={removeGuardian}
               onUpdate={updateGuardian}
@@ -655,6 +813,7 @@ export default function NewWillPage() {
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
+      {!cloneError && (
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
         <button
           type="button"
@@ -684,6 +843,7 @@ export default function NewWillPage() {
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }

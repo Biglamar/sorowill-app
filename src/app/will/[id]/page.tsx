@@ -15,7 +15,7 @@ import {
 
 import { safeGetPublicKey, truncateAddress } from '@/lib/freighter';
 import { getSoroWillClient, stellarExpertUrl } from '@/lib/sorowill';
-import { formatError } from '@/lib/errors';
+import { formatError, formatLoadError } from '@/lib/errors';
 import { nextCheckinDeadline, graceDeadline } from '@/lib/deadlines';
 import { useToast } from '@/components/Toast';
 import { BeneficiaryForm } from '@/components/BeneficiaryForm';
@@ -104,6 +104,10 @@ function isValidWillId(id: string): boolean {
   return /^\d+$/.test(id);
 }
 
+export function shouldReplaceBeneficiaryDraft(isEditing: boolean): boolean {
+  return !isEditing;
+}
+
 export default function WillDetailPage() {
   const toast = useToast();
   const router = useRouter();
@@ -136,9 +140,6 @@ export default function WillDetailPage() {
     }
   }, [showEditBeneficiaries, will]);
 
-  const [showEarlyRelease, setShowEarlyRelease] = useState(false);
-  const [earlyReleaseAmount, setEarlyReleaseAmount] = useState('');
-  const [earlyReleaseRecipient, setEarlyReleaseRecipient] = useState('');
   const [reminderEmail, setReminderEmail] = useState('');
   const [reminderStatus, setReminderStatus] = useState<string | null>(null);
   const [reminderPending, setReminderPending] = useState(false);
@@ -159,11 +160,10 @@ export default function WillDetailPage() {
         return;
       }
       setWill(fetched);
-      setDraftBeneficiaries(fetched.beneficiaries);
       setLastFetchTime(new Date());
       // Only reset draft beneficiaries when the edit panel is not open,
       // otherwise in-progress edits would be silently overwritten.
-      if (!showEditBeneficiariesRef.current) {
+      if (shouldReplaceBeneficiaryDraft(showEditBeneficiariesRef.current)) {
         setDraftBeneficiaries(fetched.beneficiaries);
       }
       setError(null);
@@ -171,7 +171,8 @@ export default function WillDetailPage() {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load will', err);
+      setError(formatLoadError(err));
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -184,11 +185,14 @@ export default function WillDetailPage() {
     try {
       const fetched = await getSoroWillClient().getWill(willId);
       setWill(fetched);
-      setDraftBeneficiaries(fetched.beneficiaries);
+      if (shouldReplaceBeneficiaryDraft(showEditBeneficiariesRef.current)) {
+        setDraftBeneficiaries(fetched.beneficiaries);
+      }
       setLastFetchTime(new Date());
       setError(null);
       toast.success('Data refreshed');
     } catch (err) {
+      console.error('[WillDetail] Failed to refresh will:', err);
       const message = formatError(err);
       setError(message);
       toast.error(message);
@@ -326,7 +330,9 @@ export default function WillDetailPage() {
   if (error && !will) {
     return (
       <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-        <h1 className="text-lg font-semibold text-red-300">Couldn&apos;t load this will</h1>
+        <h1 className="text-lg font-semibold text-red-300">
+          Could not load will — check your connection
+        </h1>
         <p className="mt-2 text-sm text-red-300/70">{error}</p>
         <button
           type="button"
@@ -495,14 +501,6 @@ export default function WillDetailPage() {
             >
               Top Up
             </button>
-            <button
-              type="button"
-              onClick={() => setShowEarlyRelease((s) => !s)}
-              className="w-full rounded-full border border-white/20 px-4 py-2 text-sm text-will-light/80 transition hover:border-white/40 sm:w-auto"
-              title="Coming soon: requires SDK support"
-            >
-              Release Early
-            </button>
               <button
                 type="button"
                 onClick={() => {
@@ -521,7 +519,6 @@ export default function WillDetailPage() {
               type="button"
               onClick={() => router.push(`/will/new?cloneFrom=${will.id}`)}
               className="w-full rounded-full border border-white/20 px-4 py-2 text-sm text-will-light/80 transition hover:border-white/40 sm:w-auto"
-              title="Coming soon: requires SDK support"
             >
               Duplicate
             </button>
@@ -607,75 +604,21 @@ export default function WillDetailPage() {
         </form>
       ) : null}
 
-      {showEarlyRelease ? (
-        <div className="print-hide rounded-xl border border-will-purple/40 bg-will-purple/10 p-4">
-          <h3 className="text-sm font-semibold text-will-light">Release early to beneficiary</h3>
-          <div className="mt-3 space-y-3">
-            <div>
-              <label htmlFor="early-release-amount" className="text-xs text-will-light/70">
-                Amount (USDC)
-              </label>
-              <input
-                id="early-release-amount"
-                type="number"
-                min={0}
-                step="0.01"
-                value={earlyReleaseAmount}
-                onChange={(event) => {
-                  const val = event.target.value;
-                  if (val !== '' && Number(val) < 0) {
-                    setEarlyReleaseAmount('0');
-                  } else {
-                    setEarlyReleaseAmount(val);
-                  }
-                }}
-                placeholder="0.00"
-                className="mt-1 w-full rounded-lg border border-will-purple/30 bg-will-purple/5 px-3 py-2 text-sm text-will-light focus:border-will-purple focus:outline-none"
-              />
-            </div>
-            <div>
-              <label htmlFor="early-release-recipient" className="text-xs text-will-light/70">
-                Recipient address
-              </label>
-              <input
-                id="early-release-recipient"
-                type="text"
-                value={earlyReleaseRecipient}
-                onChange={(event) => setEarlyReleaseRecipient(event.target.value)}
-                placeholder="Stellar address (G...)"
-                className="mt-1 w-full rounded-lg border border-will-purple/30 bg-will-purple/5 px-3 py-2 font-mono text-sm text-will-light placeholder:text-will-light/40 focus:border-will-purple focus:outline-none"
-              />
-            </div>
-            <p className="text-xs text-will-light/50">
-              Note: Partial early release requires SDK support (coming soon)
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEarlyRelease(false);
-                  setEarlyReleaseAmount('');
-                  setEarlyReleaseRecipient('');
-                }}
-                className="w-full rounded-full border border-white/20 px-4 py-2 text-sm text-will-light/80 transition hover:border-white/40 sm:w-auto"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {showEditBeneficiaries ? (
         <div className="print-hide space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
           <BeneficiaryForm value={draftBeneficiaries} onChange={setDraftBeneficiaries} />
           <button
             type="button"
             onClick={async () => {
-              await runAction('update_beneficiaries', () =>
-                client.updateBeneficiaries({ willId: will.id, beneficiaries: draftBeneficiaries }),
+              await runAction(
+                'update_beneficiaries',
+                () => client.updateBeneficiaries({ willId: will.id, beneficiaries: draftBeneficiaries }),
+                undefined,
+                () => {
+                  showEditBeneficiariesRef.current = false;
+                  setShowEditBeneficiaries(false);
+                },
               );
-              setShowEditBeneficiaries(false);
             }}
             disabled={busyAction !== null || !validateBeneficiaries(draftBeneficiaries) || !draftBeneficiaries.every((b) => b.address.trim() !== '')}
             className="rounded-full bg-will-purple px-4 py-2 text-sm font-medium text-white disabled:opacity-60"

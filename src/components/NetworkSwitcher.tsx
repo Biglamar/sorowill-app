@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getNetwork, resetSoroWillClient } from '@/lib/sorowill';
+import { clearTokenDecimalsCache } from '@/lib/tokenDecimals';
 import { type SoroWillNetwork } from '@sorowill/sdk';
 import { DestructiveActionConfirmation } from '@/components/DestructiveActionConfirmation';
 import { useMounted } from '@/lib/useMounted';
@@ -34,6 +35,8 @@ export function NetworkSwitcher() {
     // and the SDK's own spec-caching could otherwise serve stale
     // contract state after a network switch.
     resetSoroWillClient();
+    // Contract IDs are network-scoped; drop decimals resolved for the old network.
+    clearTokenDecimalsCache();
     // Reload the page to reconstruct client and clear/reset state
     window.location.reload();
   }
