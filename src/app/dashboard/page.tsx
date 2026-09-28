@@ -8,7 +8,7 @@ import { WillStatus, type Will, formatUSDC, toStroops } from '@sorowill/sdk';
 
 import { safeGetPublicKey } from '@/lib/freighter';
 import { getSoroWillClient, getWillsByGuardian } from '@/lib/sorowill';
-import { getInvalidBatchAmounts, isValidAmount } from '@/lib/amount';
+import { formatAmount, getInvalidBatchAmounts, isValidAmount } from '@/lib/amount';
 import { formatError } from '@/lib/errors';
 import { exportWillsToCSV } from '@/lib/willExport';
 import { useToast } from '@/components/Toast';
@@ -580,9 +580,9 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center pt-2 border-t border-white/10">
             <span className="text-sm font-semibold text-will-light">
               Total Amount:{' '}
-              {Object.values(batchAmounts)
-                .reduce((sum, val) => sum + (Number(val) || 0), 0)
-                .toFixed(2)}{' '}
+              {formatAmount(
+                Object.values(batchAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0),
+              )}{' '}
               USDC
               {invalidBatchWillIds.length > 0 && (
                 <span className="block text-xs font-normal text-red-400">

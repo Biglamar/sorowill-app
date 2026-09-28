@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { formatAmount } from '@/lib/amount';
 import { getSoroWillClient } from '@/lib/sorowill';
 import InheritPageClient from './InheritPageClient';
 
@@ -11,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   try {
     const will = await getSoroWillClient().getWill(id);
     title = `Inheritance — Will #${will.id}`;
-    description = `Claim your inheritance from Will #${will.id}. Status: ${will.status}. Locked balance: ${(Number(will.balance) / 1_000_000).toFixed(2)} USDC. ${will.beneficiaries.length} beneficiaries.`;
+    description = `Claim your inheritance from Will #${will.id}. Status: ${will.status}. Locked balance: ${formatAmount(Number(will.balance) / 1_000_000)} USDC. ${will.beneficiaries.length} beneficiaries.`;
   } catch {
     // Graceful fallback — if the will fetch fails, keep generic metadata.
   }

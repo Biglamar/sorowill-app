@@ -13,6 +13,7 @@ import { type Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { formatDeadline, WillStatus } from '@sorowill/sdk';
+import { formatAmount } from '@/lib/amount';
 import { getContractId, getSoroWillClient, stellarExpertUrl } from '@/lib/sorowill';
 import { isWillNotFoundError } from '@/lib/errors';
 import { nextCheckinDeadline } from '@/lib/deadlines';
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   try {
     const will = await getSoroWillClient().getWill(id);
     title = `Verify Will #${will.id}`;
-    description = `Status: ${will.status}. Locked balance: ${(Number(will.balance) / 1_000_000).toFixed(2)} USDC. ${will.beneficiaries.length} beneficiaries.`;
+    description = `Status: ${will.status}. Locked balance: ${formatAmount(Number(will.balance) / 1_000_000)} USDC. ${will.beneficiaries.length} beneficiaries.`;
   } catch {
     // Fall back to generic metadata if the will fetch fails.
   }
