@@ -72,3 +72,48 @@ describe('ShareVerification — copy failure toast (#241)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
+
+describe('ShareVerification — navigator.share fallback (#396)', () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+      writable: true,
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    delete (navigator as { share?: unknown }).share;
+    vi.restoreAllMocks();
+  });
+
+  it('shows a copy button when navigator.share is unavailable', async () => {
+    delete (navigator as { share?: unknown }).share;
+
+    renderWithToast();
+
+    const button = await screen.findByRole('button', { name: /copy link/i });
+    expect(screen.queryByRole('button', { name: /share link/i })).toBeNull();
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.href);
+    });
+  });
+
+  it('uses navigator.share when available', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true });
+
+    renderWithToast();
+
+    const button = await screen.findByRole('button', { name: /share link/i });
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: window.location.href }));
+    });
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+  });
+});
