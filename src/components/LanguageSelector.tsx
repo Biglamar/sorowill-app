@@ -2,9 +2,25 @@
 
 import { useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useEffect, useTransition } from 'react';
 
-type SupportedLocale = 'en' | 'es';
+import { supportedLocales, type SupportedLocale } from '@/i18n/negotiate';
+
+const DEFAULT_LOCALE: SupportedLocale = 'en';
+const LOCALE_COOKIE = 'NEXT_LOCALE';
+
+export function isSupportedLocale(value: unknown): value is SupportedLocale {
+  return typeof value === 'string' && (supportedLocales as readonly string[]).includes(value);
+}
+
+function writeLocaleCookie(locale: SupportedLocale) {
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000`;
+}
+
+function readLocaleCookie(): string | undefined {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
 
 const localeLabels: Record<SupportedLocale, string> = {
   en: 'English',
@@ -15,25 +31,34 @@ const localeLabels: Record<SupportedLocale, string> = {
  * Language selector component that allows users to switch between supported
  * locales. Persists the choice in the `NEXT_LOCALE` cookie -- the convention
  * `next-intl`'s `getLocale()` reads server-side -- then refreshes the router
- * so the server re-renders with the new locale.
+ * so the server re-renders with the new locale. Only locales from the i18n
+ * `supportedLocales` list are accepted; an unsupported persisted value is
+ * silently replaced with the default (`en`).
  */
 export function LanguageSelector() {
   const locale = useLocale() as SupportedLocale;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const handleLocaleChange = (newLocale: SupportedLocale) => {
-    if (newLocale === locale) return;
+  useEffect(() => {
+    const persisted = readLocaleCookie();
+    if (persisted !== undefined && !isSupportedLocale(persisted)) {
+      writeLocaleCookie(DEFAULT_LOCALE);
+    }
+  }, []);
+
+  const handleLocaleChange = (newLocale: string) => {
+    if (!isSupportedLocale(newLocale) || newLocale === locale) return;
 
     startTransition(() => {
-      document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000`;
+      writeLocaleCookie(newLocale);
       router.refresh();
     });
   };
 
   return (
     <div className="flex items-center gap-2">
-      {(['en', 'es'] as const).map((loc) => (
+      {supportedLocales.map((loc) => (
         <button
           key={loc}
           onClick={() => handleLocaleChange(loc)}
