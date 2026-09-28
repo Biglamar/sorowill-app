@@ -144,4 +144,33 @@ describe('useKeyboardShortcuts', () => {
 
     expect(onNewWill).toHaveBeenCalledOnce();
   });
+
+  it('registers the keydown listener once and uses the latest handlers across re-renders', () => {
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
+    const first = vi.fn();
+    const second = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ handler }) => useKeyboardShortcuts({ onNewWill: () => handler(), shortcuts: {} }),
+      { initialProps: { handler: first } }
+    );
+    rerender({ handler: second });
+    rerender({ handler: second });
+
+    const keydownAdds = addSpy.mock.calls.filter(([type]) => type === 'keydown');
+    const keydownRemoves = removeSpy.mock.calls.filter(([type]) => type === 'keydown');
+    expect(keydownAdds).toHaveLength(1);
+    expect(keydownRemoves).toHaveLength(0);
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }));
+    });
+
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
 });

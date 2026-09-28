@@ -106,10 +106,14 @@ export default function DashboardPage() {
     };
   }, []);
 
+  const handleShortcutNewWill = useCallback(() => router.push('/will/new'), [router]);
+  const handleShortcutSearch = useCallback(() => searchInputRef.current?.focus(), []);
+  const handleShortcutHelp = useCallback(() => setShowShortcutsHelp((prev) => !prev), []);
+
   useKeyboardShortcuts({
-    onNewWill: () => router.push('/will/new'),
-    onSearch: () => searchInputRef.current?.focus(),
-    onHelp: () => setShowShortcutsHelp((prev) => !prev),
+    onNewWill: handleShortcutNewWill,
+    onSearch: handleShortcutSearch,
+    onHelp: handleShortcutHelp,
   });
 
   const loadWills = useCallback(async (owner: string) => {
