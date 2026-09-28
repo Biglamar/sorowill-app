@@ -85,7 +85,7 @@ export default function DashboardPage() {
   const [ownedWills, setOwnedWills] = useState<Will[]>([]);
   const [inheritingWills, setInheritingWills] = useState<Will[]>([]);
   const [guardianWills, setGuardianWills] = useState<Will[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [guardianScanWarning, setGuardianScanWarning] = useState(false);
@@ -171,6 +171,7 @@ export default function DashboardPage() {
       setError(null);
       toast.success('Data refreshed');
     } catch (err) {
+      console.error('[Dashboard] Failed to refresh wills:', err);
       const message = formatError(err);
       setError(message);
       toast.error(message);
@@ -186,6 +187,10 @@ export default function DashboardPage() {
       }
       setPublicKey(key);
       setCheckedWallet(true);
+      // If no wallet is connected there is nothing to load — stop the spinner.
+      if (!key) {
+        setLoading(false);
+      }
     });
   }, []);
 
@@ -507,12 +512,20 @@ export default function DashboardPage() {
       ) : null}
 
       {error ? (
-        <div className="text-sm text-red-400 flex items-center gap-3" role="alert">
-          <span>{error}</span>
+        <div
+          className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-start justify-between gap-3"
+          role="alert"
+        >
+          <div>
+            <p className="text-sm font-semibold text-red-300">
+              Could not load your dashboard — check your connection
+            </p>
+            <p className="mt-1 text-xs text-red-300/70">{error}</p>
+          </div>
           <button
             type="button"
             onClick={handleRetry}
-            className="rounded-full border border-red-400/50 px-3 py-1 text-xs font-medium text-red-300 transition hover:bg-red-400/10"
+            className="shrink-0 rounded-full border border-red-400/50 px-3 py-1 text-xs font-medium text-red-300 transition hover:bg-red-400/10"
           >
             Try again
           </button>
