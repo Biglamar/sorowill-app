@@ -208,6 +208,20 @@ curl --fail -X POST https://your-app.example.com/api/reminders/dispatch \
 - **Race Condition Mitigation:** The dispatch route records `wellBeforeSentAt` and `imminentSentAt` timestamps per will in the KV store immediately after each send. Subscriptions with a recorded timestamp of that kind are skipped. This prevents duplicate reminders even if two dispatch runs overlap, though the lack of locking means a true race condition is still theoretically possible—yet another reason to keep a single scheduler.
 - **Error Visibility:** GitHub Actions fails the run when the dispatch endpoint returns a non-2xx response, making broken dispatch immediately visible in the Actions UI.
 
+## Accessibility
+
+SoroWill targets **[WCAG 2.1 Level AA](https://www.w3.org/TR/WCAG21/)** conformance.
+
+How it is tested:
+
+- **Automated axe audits** — `tests/e2e/accessibility.spec.ts` uses [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) with the `wcag2a`, `wcag2aa`, `wcag21a` and `wcag21aa` rule tags against the landing page, dashboard and will creation wizard, and fails on any `serious` or `critical` violation. The same spec checks heading structure, keyboard focus, form labels and button names. Run it locally with `npm run test:a11y`; it also runs in CI as part of the Playwright E2E job.
+- **Component tests** — Vitest + Testing Library assert accessible roles and names on individual components (e.g. `tests/unit/CountdownTimer.a11y.test.tsx`).
+- **Linting** — `npm run lint` uses `eslint-config-next/core-web-vitals`, which includes a subset of `eslint-plugin-jsx-a11y` rules.
+- **Lighthouse** — a target Lighthouse accessibility score of 90+ is recorded in `tests/unit/lighthouse-performance-budget.test.ts`; Lighthouse is not yet run automatically in CI, so check it manually (Chrome DevTools → Lighthouse) for UI changes.
+- **Manual review** — automated tools catch only part of WCAG. For UI changes, also check keyboard-only navigation, visible focus, and screen reader output (e.g. NVDA or VoiceOver).
+
+See [docs/TESTING_MAP.md](./docs/TESTING_MAP.md) for where accessibility tests live, and [CONTRIBUTING.md](./CONTRIBUTING.md) for the contribution checklist.
+
 ## Contributing via Drips Wave
 
 This repo participates in the **Stellar Wave Program** on [Drips](https://drips.network/wave). Maintainer-tagged issues carry Point values, and contributors who resolve them during an active Wave earn a proportional share of that Wave's reward pool. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the contribution workflow, and <https://drips.network/wave> for how Wave itself works.
