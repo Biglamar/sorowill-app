@@ -112,4 +112,18 @@ describe('downloadWillCertificate', () => {
     const expectedLine = `Next check-in due: ${sharedDeadline.toISOString()}`;
     expect(textLines).toContain(expectedLine);
   });
+
+  it('never writes Stellar secret-key material (docs/KEY_DERIVATION.md)', async () => {
+    // SoroWill derives no keys: the certificate is built only from public
+    // on-chain fields, so no StrKey secret seed (S + 55 base32 chars) may appear.
+    const will = makeWill();
+
+    await downloadWillCertificate(will, 'https://example.com/verify/will-test-001');
+
+    expect(textLines.length).toBeGreaterThan(0);
+    for (const line of textLines) {
+      expect(line).not.toMatch(/\bS[A-Z2-7]{55}\b/);
+    }
+    expect(textLines).toContain(`Owner: ${will.owner}`);
+  });
 });

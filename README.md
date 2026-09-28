@@ -208,6 +208,10 @@ curl --fail -X POST https://your-app.example.com/api/reminders/dispatch \
 - **Race Condition Mitigation:** The dispatch route records `wellBeforeSentAt` and `imminentSentAt` timestamps per will in the KV store immediately after each send. Subscriptions with a recorded timestamp of that kind are skipped. This prevents duplicate reminders even if two dispatch runs overlap, though the lack of locking means a true race condition is still theoretically possible—yet another reason to keep a single scheduler.
 - **Error Visibility:** GitHub Actions fails the run when the dispatch endpoint returns a non-2xx response, making broken dispatch immediately visible in the Actions UI.
 
+## Keys and recovery
+
+SoroWill is non-custodial and derives no keys; your wallet (e.g. Freighter) holds them. See [docs/KEY_DERIVATION.md](./docs/KEY_DERIVATION.md) for the wallet derivation path (SEP-0005, `m/44'/148'/x'`), how to verify it, and how to recover access.
+
 ## Contributing via Drips Wave
 
 This repo participates in the **Stellar Wave Program** on [Drips](https://drips.network/wave). Maintainer-tagged issues carry Point values, and contributors who resolve them during an active Wave earn a proportional share of that Wave's reward pool. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the contribution workflow, and <https://drips.network/wave> for how Wave itself works.
