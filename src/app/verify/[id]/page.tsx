@@ -13,8 +13,8 @@ import { type Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { formatDeadline, WillStatus } from '@sorowill/sdk';
-import { formatAmount } from '@/lib/amount';
-import { getContractId, getSoroWillClient, stellarExpertUrl } from '@/lib/sorowill';
+import { getContractId, stellarExpertUrl } from '@/lib/sorowill';
+import { getCachedWill, buildWillMetadataDescription } from '@/lib/willMetadata';
 import { isWillNotFoundError } from '@/lib/errors';
 import { nextCheckinDeadline } from '@/lib/deadlines';
 import { StatusBanner } from '@/components/StatusBanner';
@@ -27,9 +27,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
 
   try {
-    const will = await getSoroWillClient().getWill(id);
+    const will = await getCachedWill(id);
     title = `Verify Will #${will.id}`;
-    description = `Status: ${will.status}. Locked balance: ${formatAmount(Number(will.balance) / 1_000_000)} USDC. ${will.beneficiaries.length} beneficiaries.`;
+    description = buildWillMetadataDescription(will);
   } catch {
     // Fall back to generic metadata if the will fetch fails.
   }
@@ -41,7 +41,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   let will;
   try {
-    will = await getSoroWillClient().getWill(id);
+    will = await getCachedWill(id);
   } catch (error) {
     if (isWillNotFoundError(error)) {
       notFound();
