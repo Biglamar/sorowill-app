@@ -19,7 +19,16 @@ import { formatError } from '@/lib/errors';
 const DISCONNECTED_KEY = 'sorowill:wallet-cleared';
 const BROADCAST_CHANNEL_NAME = 'wallet_state';
 
-type ErrorType = 'not_installed' | 'user_declined' | 'generic';
+// There is no auth token here: the "session" is the connected public key we
+// hold in state. It goes stale when Freighter locks, switches account or
+// revokes access, so it is re-validated periodically and capped at a max age,
+// after which the user must reconnect explicitly.
+const CONNECTED_AT_KEY = 'sorowill:wallet-connected-at';
+export const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+export const SESSION_CHECK_INTERVAL_MS = 30_000;
+export const SESSION_EXPIRED_MESSAGE = 'Session expired. Please reconnect your wallet.';
+
+type ErrorType = 'not_installed' | 'user_declined' | 'session_expired' | 'generic';
 
 interface ErrorInfo {
   type: ErrorType;
@@ -76,6 +85,30 @@ function setSessionCleared(cleared: boolean): void {
   }
 }
 
+export function isSessionExpired(connectedAt: number | null, now: number = Date.now()): boolean {
+  return connectedAt !== null && now - connectedAt >= SESSION_MAX_AGE_MS;
+}
+
+function getConnectedAt(): number | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const raw = window.sessionStorage.getItem(CONNECTED_AT_KEY);
+  const value = raw === null ? NaN : Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function setConnectedAt(value: number | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (value === null) {
+    window.sessionStorage.removeItem(CONNECTED_AT_KEY);
+  } else {
+    window.sessionStorage.setItem(CONNECTED_AT_KEY, String(value));
+  }
+}
+
 export function WalletConnect() {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -90,16 +123,54 @@ export function WalletConnect() {
     };
   }, []);
 
+  function expireSession() {
+    setSessionCleared(true);
+    setConnectedAt(null);
+    setPublicKey(null);
+    setError({ type: 'session_expired', message: SESSION_EXPIRED_MESSAGE });
+  }
+
   useEffect(() => {
     if (isSessionCleared()) {
       return;
     }
+    if (isSessionExpired(getConnectedAt())) {
+      expireSession();
+      return;
+    }
     void safeGetPublicKey().then((key) => {
       if (isMounted.current) {
+        if (key && getConnectedAt() === null) {
+          setConnectedAt(Date.now());
+        }
         setPublicKey(key);
       }
     });
   }, []);
+
+  // Re-validate the session while connected: expire it once it outlives
+  // SESSION_MAX_AGE_MS or the wallet no longer reports the same account.
+  useEffect(() => {
+    if (!publicKey) return;
+
+    let cancelled = false;
+    const check = async () => {
+      if (isSessionExpired(getConnectedAt())) {
+        expireSession();
+        return;
+      }
+      const current = await safeGetPublicKey();
+      if (!cancelled && isMounted.current && current !== publicKey) {
+        expireSession();
+      }
+    };
+    const id = setInterval(() => void check(), SESSION_CHECK_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [publicKey]);
 
   useEffect(() => {
     const channel = openWalletChannel();
@@ -110,8 +181,11 @@ export function WalletConnect() {
 
       if (type === 'wallet_connected' && incomingKey) {
         setSessionCleared(false);
+        setConnectedAt(Date.now());
+        setError(null);
         setPublicKey(incomingKey);
       } else if (type === 'wallet_disconnected') {
+        setConnectedAt(null);
         setPublicKey(null);
       }
     };
@@ -130,6 +204,7 @@ export function WalletConnect() {
     setSessionCleared(false);
     try {
       const connection = await safeConnectWallet();
+      setConnectedAt(Date.now());
       setPublicKey(connection.publicKey);
 
       const channel = openWalletChannel();
@@ -149,6 +224,7 @@ export function WalletConnect() {
 
   function handleClearSession() {
     setSessionCleared(true);
+    setConnectedAt(null);
     setPublicKey(null);
     setError(null);
 

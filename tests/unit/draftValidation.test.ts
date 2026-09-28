@@ -3,10 +3,20 @@
  *
  * Covers issues #411/#439 (parsePeriodInput edge cases) and
  * #438 (isValidDraft / parseDraft: valid, invalid, and missing draft scenarios).
+ * #409 (loadDraft: validate before use, discard invalid drafts from storage).
+ * #410 (clearDraft: draft removed after submission / wallet disconnect).
  */
 
-import { describe, it, expect } from 'vitest';
-import { isValidDraft, parseDraft, parsePeriodInput, isValidPeriodDays } from '@/lib/draftValidation';
+import { beforeEach, describe, it, expect } from 'vitest';
+import {
+  DRAFT_STORAGE_KEY,
+  clearDraft,
+  isValidDraft,
+  loadDraft,
+  parseDraft,
+  parsePeriodInput,
+  isValidPeriodDays,
+} from '@/lib/draftValidation';
 
 // ---------------------------------------------------------------------------
 // parsePeriodInput — #411 / #439
@@ -140,6 +150,18 @@ describe('isValidDraft', () => {
     expect(isValidDraft({ ...VALID_DRAFT, step: '0' })).toBe(false);
   });
 
+  it('rejects a step outside the wizard range', () => {
+    expect(isValidDraft({ ...VALID_DRAFT, step: -1 })).toBe(false);
+    expect(isValidDraft({ ...VALID_DRAFT, step: 5 })).toBe(false);
+    expect(isValidDraft({ ...VALID_DRAFT, step: 1.5 })).toBe(false);
+  });
+
+  it('rejects a non-finite beneficiary percentage', () => {
+    expect(
+      isValidDraft({ ...VALID_DRAFT, beneficiaries: [{ address: 'GABC', percentage: NaN }] }),
+    ).toBe(false);
+  });
+
   it('rejects when token is missing', () => {
     const { token: _, ...rest } = VALID_DRAFT;
     expect(isValidDraft(rest)).toBe(false);
@@ -214,5 +236,65 @@ describe('parseDraft', () => {
 
   it('returns null for a JSON array', () => {
     expect(parseDraft('[]')).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadDraft — #409
+// ---------------------------------------------------------------------------
+
+describe('loadDraft', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns the validated draft and keeps it in storage', () => {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(VALID_DRAFT));
+    expect(loadDraft(localStorage)).toEqual({ status: 'valid', draft: VALID_DRAFT });
+    expect(localStorage.getItem(DRAFT_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it('reports a missing draft without touching storage', () => {
+    expect(loadDraft(localStorage)).toEqual({ status: 'missing', draft: null });
+  });
+
+  it('discards malformed JSON', () => {
+    localStorage.setItem(DRAFT_STORAGE_KEY, '{not-json');
+    expect(loadDraft(localStorage)).toEqual({ status: 'invalid', draft: null });
+    expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
+  it('discards a stale draft missing a required field', () => {
+    const { guardians: _, ...stale } = VALID_DRAFT;
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(stale));
+    expect(loadDraft(localStorage)).toEqual({ status: 'invalid', draft: null });
+    expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// clearDraft — #410
+// ---------------------------------------------------------------------------
+
+describe('clearDraft', () => {
+  it('removes a saved draft so it is not offered again', () => {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(VALID_DRAFT));
+    clearDraft(localStorage);
+    expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+    expect(loadDraft(localStorage).status).toBe('missing');
+  });
+
+  it('is a no-op when no draft exists', () => {
+    localStorage.clear();
+    expect(() => clearDraft(localStorage)).not.toThrow();
+    expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
+  it('leaves unrelated keys alone', () => {
+    localStorage.setItem('other-key', 'keep');
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(VALID_DRAFT));
+    clearDraft(localStorage);
+    expect(localStorage.getItem('other-key')).toBe('keep');
+    localStorage.removeItem('other-key');
   });
 });
