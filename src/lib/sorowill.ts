@@ -76,21 +76,28 @@ function getContractIdForNetwork(network: SoroWillNetwork): string {
   let contractId: string | undefined;
 
   if (network === 'mainnet') {
-    contractId = process.env.NEXT_PUBLIC_CONTRACT_ID_MAINNET;
+    // Mainnet is strict: never silently fall back to the generic
+    // NEXT_PUBLIC_CONTRACT_ID, which is almost certainly a testnet address.
+    // A testnet address sent against mainnet either points at a nonexistent
+    // contract or — worse — a completely different contract that happens to
+    // share the same ID. Require an explicit mainnet-specific variable so
+    // the misconfiguration is caught at startup rather than at sign time.
+    contractId = process.env.NEXT_PUBLIC_CONTRACT_ID_MAINNET || '';
     if (!contractId) {
       throw new Error(
-        'Missing required environment variable for mainnet: NEXT_PUBLIC_CONTRACT_ID_MAINNET. ' +
-          'Refusing to fall back to NEXT_PUBLIC_CONTRACT_ID because it may point at a different ' +
-          "network's contract. Set NEXT_PUBLIC_CONTRACT_ID_MAINNET in .env.local (see .env.example).",
+        'Missing required environment variable: NEXT_PUBLIC_CONTRACT_ID_MAINNET. ' +
+          'Set it to the SoroWill contract address deployed on Stellar mainnet. ' +
+          'Do not reuse a testnet address — it will point at the wrong (or nonexistent) contract.',
       );
     }
   } else {
-    contractId =
-      process.env.NEXT_PUBLIC_CONTRACT_ID_TESTNET || process.env.NEXT_PUBLIC_CONTRACT_ID;
+    // Testnet allows the legacy generic fallback for local/preview deployments
+    // that only set NEXT_PUBLIC_CONTRACT_ID.
+    contractId = process.env.NEXT_PUBLIC_CONTRACT_ID_TESTNET || process.env.NEXT_PUBLIC_CONTRACT_ID || '';
     if (!contractId) {
       throw new Error(
-        'Missing required environment variable for testnet: NEXT_PUBLIC_CONTRACT_ID_TESTNET ' +
-          '(or the legacy NEXT_PUBLIC_CONTRACT_ID). Copy .env.example to .env.local and fill it in.',
+        'Missing required environment variable: NEXT_PUBLIC_CONTRACT_ID_TESTNET (or NEXT_PUBLIC_CONTRACT_ID). ' +
+          'Copy .env.example to .env.local and fill it in.',
       );
     }
   }
