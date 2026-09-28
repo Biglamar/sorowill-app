@@ -8,119 +8,44 @@ export const metadata: Metadata = {
   description: 'SoroWill protocol updates and release notes',
 };
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface ChangelogEntry {
-  version: string;
-  date: string;
-  sections: { heading: string; items: string[] }[];
-}
-
-// ---------------------------------------------------------------------------
-// CHANGELOG.md parser
-// ---------------------------------------------------------------------------
-
-/**
- * Parse CHANGELOG.md (Keep a Changelog format) into structured entries.
- *
- * Only released versions are returned — [Unreleased] is skipped.
- * Within each version block, ### sub-headings (Added, Fixed, …) are
- * preserved as section groups.  Plain bullet lines without a sub-heading
- * fall into an implicit "Changed" group.
- */
-function parseChangelog(content: string): ChangelogEntry[] {
-  const lines = content.split('\n');
-  const entries: ChangelogEntry[] = [];
-
-  let currentEntry: ChangelogEntry | null = null;
-  let currentSection: { heading: string; items: string[] } | null = null;
-
-  const flush = () => {
-    if (currentSection && currentEntry) {
-      if (currentSection.items.length > 0) {
-        currentEntry.sections.push(currentSection);
-      }
-      currentSection = null;
-    }
-  };
-
-  for (const rawLine of lines) {
-    const line = rawLine.trimEnd();
-
-    // Released version heading: ## [X.Y.Z] - YYYY-MM-DD
-    const versionMatch = line.match(/^##\s+\[([^\]]+)\](?:\s+-\s+(.*))?/);
-    if (versionMatch) {
-      const tag = versionMatch[1];
-      if (tag.toLowerCase() === 'unreleased') continue;
-
-      // Save previous entry
-      flush();
-      if (currentEntry) entries.push(currentEntry);
-
-      currentEntry = {
-        version: tag,
-        date: versionMatch[2]?.trim() ?? '',
-        sections: [],
-      };
-      currentSection = null;
-      continue;
-    }
-
-    if (!currentEntry) continue;
-
-    // Sub-section heading: ### Added / Fixed / Changed …
-    const subHeadingMatch = line.match(/^###\s+(.*)/);
-    if (subHeadingMatch) {
-      flush();
-      currentSection = { heading: subHeadingMatch[1].trim(), items: [] };
-      continue;
-    }
-
-    // Bullet item: - text  or  * text
-    const bulletMatch = line.match(/^[*-]\s+(.*)/);
-    if (bulletMatch) {
-      if (!currentSection) {
-        currentSection = { heading: 'Changes', items: [] };
-      }
-      currentSection.items.push(bulletMatch[1].trim());
-    }
-  }
-
-  // Flush last section / entry
-  flush();
-  if (currentEntry) entries.push(currentEntry);
-
-  return entries;
-}
-
-// ---------------------------------------------------------------------------
-// Data — read at build time (server component)
-// ---------------------------------------------------------------------------
-
-function loadChangelogEntries(): ChangelogEntry[] {
-  try {
-    const changelogPath = resolve(process.cwd(), 'CHANGELOG.md');
-    const content = readFileSync(changelogPath, 'utf-8');
-    return parseChangelog(content);
-  } catch {
-    // In test environments CHANGELOG.md may not be present; return empty.
-    return [];
-  }
-}
-
-const CHANGELOG_ENTRIES = loadChangelogEntries();
-
-// ---------------------------------------------------------------------------
-// Roadmap items — kept static (not version-controlled in CHANGELOG)
-// ---------------------------------------------------------------------------
-
-const ROADMAP_ITEMS = [
-  'Multi-asset support (beyond USDC)',
-  'Guardian delegation and notification systems',
-  'Advanced inheritance triggers and conditions',
-  'Cross-chain interoperability',
+const CHANGELOG_ENTRIES = [
+  {
+    version: 'v0.1.0',
+    date: 'July 2026',
+    title: 'Launch',
+    highlights: [
+      'Initial release of SoroWill on Stellar Soroban',
+      'Core features: create wills, set beneficiaries, check-in mechanism',
+      'Public stats page for protocol transparency',
+      'Non-custodial smart contracts with immutable deployment',
+      'Legal pages and privacy policy',
+      'Open source under MIT license',
+    ],
+  },
+  {
+    version: 'v0.9.0',
+    date: 'June 2026',
+    title: 'Release Candidate',
+    highlights: [
+      'Dashboard for will management',
+      'Verification flow for beneficiaries',
+      'Guardian onboarding process',
+      'Inheritance trigger mechanisms',
+      'Contract integration testing',
+    ],
+  },
+  {
+    version: 'v0.5.0',
+    date: 'April 2026',
+    title: 'Testnet Alpha',
+    highlights: [
+      'Initial smart contract deployment on Soroban testnet',
+      'Web interface prototype',
+      'Wallet integration (Freighter)',
+      'Basic check-in functionality',
+      'Beneficiary configuration',
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------

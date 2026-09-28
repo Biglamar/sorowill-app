@@ -9,7 +9,7 @@ import { WillStatus, type Will, formatUSDC, toStroops } from '@sorowill/sdk';
 import { safeGetPublicKey } from '@/lib/freighter';
 import { getSoroWillClient, getWillsByGuardian } from '@/lib/sorowill';
 import { getInvalidBatchAmounts, isValidAmount } from '@/lib/amount';
-import { formatError } from '@/lib/errors';
+import { formatError, formatLoadError } from '@/lib/errors';
 import { exportWillsToCSV } from '@/lib/willExport';
 import { useToast } from '@/components/Toast';
 import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
@@ -54,6 +54,10 @@ function matchesSearch(will: Will, query: string): boolean {
   return will.beneficiaries.some((beneficiary) =>
     beneficiary.address.toLowerCase().includes(normalized)
   );
+}
+
+export function filterWills(wills: Will[], query: string, status: StatusFilter): Will[] {
+  return wills.filter((will) => matchesSearch(will, query) && (status === 'all' || will.status === status));
 }
 
 function CardSkeleton() {
@@ -134,7 +138,8 @@ export default function DashboardPage() {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load dashboard wills', err);
+      setError(formatLoadError(err));
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -173,17 +178,6 @@ export default function DashboardPage() {
       setIsRefreshing(false);
     }
   }, [publicKey, toast]);
-
-  const handleExportCSV = useCallback(() => {
-    const csv = exportWillsToCSV(ownedWills);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `sorowill-wills-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [ownedWills]);
 
   useEffect(() => {
     void safeGetPublicKey().then((key) => {
@@ -294,10 +288,18 @@ export default function DashboardPage() {
   const baseList =
     tab === 'owned' ? ownedWills : tab === 'inheriting' ? inheritingWills : guardianWills;
 
-  const activeList = baseList.filter(
-    (will) =>
-      matchesSearch(will, search) && (statusFilter === 'all' || will.status === statusFilter),
-  );
+  const activeList = filterWills(baseList, search, statusFilter);
+
+  const handleExportCSV = useCallback(() => {
+    const csv = exportWillsToCSV(activeList);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sorowill-wills-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [activeList]);
 
   const isFiltering = search.trim() !== '' || statusFilter !== 'all';
 
@@ -380,7 +382,7 @@ export default function DashboardPage() {
               onClick={handleExportCSV}
               className="rounded-full border border-white/20 px-4 py-2 text-sm text-will-light/80 transition hover:border-white/40 hover:text-will-light"
             >
-              Export CSV
+              Export CSV ({activeList.length})
             </button>
           )}
           <button
