@@ -113,34 +113,17 @@ describe('downloadWillCertificate', () => {
     expect(textLines).toContain(expectedLine);
   });
 
-  it('includes beneficiary percentages', async () => {
-    const will = makeWill({
-      beneficiaries: [
-        { address: 'GBENEFICIARY1', percentage: 65 },
-        { address: 'GBENEFICIARY2', percentage: 35 },
-      ],
-    });
+  it('never writes Stellar secret-key material (docs/KEY_DERIVATION.md)', async () => {
+    // SoroWill derives no keys: the certificate is built only from public
+    // on-chain fields, so no StrKey secret seed (S + 55 base32 chars) may appear.
+    const will = makeWill();
 
     await downloadWillCertificate(will, 'https://example.com/verify/will-test-001');
 
-    expect(textLines).toContain('GBENEFICIARY1 — 65%');
-    expect(textLines).toContain('GBENEFICIARY2 — 35%');
-  });
-
-  it('includes a valid will creation date when present', async () => {
-    const createdAt = new Date('2026-05-12T14:30:00.000Z');
-    const will = { ...makeWill(), createdAt };
-
-    await downloadWillCertificate(will, 'https://example.com/verify/will-test-001');
-
-    expect(textLines).toContain(`Will created: ${createdAt.toISOString()}`);
-  });
-
-  it('omits the creation date when it is absent or invalid', async () => {
-    const will = { ...makeWill(), createdAt: 'not-a-date' };
-
-    await downloadWillCertificate(will, 'https://example.com/verify/will-test-001');
-
-    expect(textLines.some((line) => line.startsWith('Will created:'))).toBe(false);
+    expect(textLines.length).toBeGreaterThan(0);
+    for (const line of textLines) {
+      expect(line).not.toMatch(/\bS[A-Z2-7]{55}\b/);
+    }
+    expect(textLines).toContain(`Owner: ${will.owner}`);
   });
 });
