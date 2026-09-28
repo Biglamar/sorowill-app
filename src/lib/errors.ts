@@ -98,6 +98,56 @@ function extractMessage(error: unknown): string {
   return '';
 }
 
+/**
+ * The four distinct failure modes when fetching a will for cloning.
+ *
+ * - `not_found`  — The will no longer exists on chain (deleted / archived).
+ * - `permission` — The caller is not authorised to read this will.
+ * - `network`    — RPC / connectivity failure; the caller can retry.
+ * - `unknown`    — Any other error.
+ */
+export type CloneErrorKind = 'not_found' | 'permission' | 'network' | 'unknown';
+
+/**
+ * Classifies a thrown value from `getWill()` into one of the four
+ * `CloneErrorKind` buckets so the UI can show a targeted message.
+ *
+ * Resolution order (most-specific first):
+ *   1. not_found  — contract reports the will does not exist
+ *   2. permission — contract reports the caller is unauthorized
+ *   3. network    — RPC or fetch-level connectivity error
+ *   4. unknown    — everything else
+ */
+export function classifyCloneError(error: unknown): CloneErrorKind {
+  const message = extractMessage(error).toLowerCase();
+
+  if (
+    message.includes('not found') ||
+    message.includes('willnotfound') ||
+    message.includes('no such will') ||
+    message.includes('does not exist') ||
+    message.includes('error(contract, #1)')
+  ) {
+    return 'not_found';
+  }
+
+  if (
+    message.includes('unauthorized') ||
+    message.includes('permission') ||
+    message.includes('access denied') ||
+    message.includes('forbidden') ||
+    message.includes('not allowed')
+  ) {
+    return 'permission';
+  }
+
+  if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
+    return 'network';
+  }
+
+  return 'unknown';
+}
+
 export function formatError(error: unknown): string {
   const message = extractMessage(error);
 
