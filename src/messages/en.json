@@ -138,8 +138,7 @@
     "couldNotLoad": "Couldn't load this will",
     "releaseEarlyTitle": "Release early to beneficiary",
     "amountUSDC": "Amount (USDC)",
-    "recipientAddress": "Recipient address",
-    "earlyReleaseComingSoon": "Note: Partial early release requires SDK support (coming soon)"
+    "recipientAddress": "Recipient address"
   },
   "status": {
     "active": "Active",

@@ -56,6 +56,10 @@ function matchesSearch(will: Will, query: string): boolean {
   );
 }
 
+export function filterWills(wills: Will[], query: string, status: StatusFilter): Will[] {
+  return wills.filter((will) => matchesSearch(will, query) && (status === 'all' || will.status === status));
+}
+
 function CardSkeleton() {
   return (
     <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4">
@@ -175,17 +179,6 @@ export default function DashboardPage() {
     }
   }, [publicKey, toast]);
 
-  const handleExportCSV = useCallback(() => {
-    const csv = exportWillsToCSV(ownedWills);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `sorowill-wills-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [ownedWills]);
-
   useEffect(() => {
     void safeGetPublicKey().then((key) => {
       if (!isMounted.current) {
@@ -295,10 +288,18 @@ export default function DashboardPage() {
   const baseList =
     tab === 'owned' ? ownedWills : tab === 'inheriting' ? inheritingWills : guardianWills;
 
-  const activeList = baseList.filter(
-    (will) =>
-      matchesSearch(will, search) && (statusFilter === 'all' || will.status === statusFilter),
-  );
+  const activeList = filterWills(baseList, search, statusFilter);
+
+  const handleExportCSV = useCallback(() => {
+    const csv = exportWillsToCSV(activeList);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sorowill-wills-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [activeList]);
 
   const isFiltering = search.trim() !== '' || statusFilter !== 'all';
 
@@ -381,7 +382,7 @@ export default function DashboardPage() {
               onClick={handleExportCSV}
               className="rounded-full border border-white/20 px-4 py-2 text-sm text-will-light/80 transition hover:border-white/40 hover:text-will-light"
             >
-              Export CSV
+              Export CSV ({activeList.length})
             </button>
           )}
           <button
