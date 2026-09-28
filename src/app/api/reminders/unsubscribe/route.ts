@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { rejectUnsupportedContentType } from '@/lib/contentType';
 import { unsubscribeReminderSubscription } from '@/lib/reminders';
 
 async function handleUnsubscribe(request: Request) {
@@ -61,5 +62,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Form encoding stays allowed for RFC 8058 one-click unsubscribe from mail clients.
+  const unsupported = rejectUnsupportedContentType(request, [
+    'application/json',
+    'application/x-www-form-urlencoded',
+  ]);
+  if (unsupported) return unsupported;
+
   return handleUnsubscribe(request);
 }

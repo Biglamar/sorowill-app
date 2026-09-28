@@ -9,11 +9,13 @@ export function ShareVerification() {
   const [url, setUrl] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [canShare, setCanShare] = useState(false);
   const mounted = useMounted();
   const toast = useToast();
 
   useEffect(() => {
     setUrl(window.location.href);
+    setCanShare(typeof navigator.share === 'function');
   }, []);
 
   useEffect(() => {
@@ -43,6 +45,17 @@ export function ShareVerification() {
     } catch (err) {
       console.error('Failed to copy text: ', err);
       toast.error('Failed to copy link — please copy it manually.');
+    }
+  }
+
+  async function handleShare() {
+    try {
+      await navigator.share({ title: document.title, url });
+    } catch (err) {
+      // User dismissed the share sheet — nothing to do.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      // Share failed for another reason: fall back to copying the link.
+      await handleCopy();
     }
   }
 
@@ -84,14 +97,14 @@ export function ShareVerification() {
         />
         <button
           type="button"
-          onClick={handleCopy}
+          onClick={canShare ? handleShare : handleCopy}
           className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-200 ${
             copied
               ? 'bg-emerald-500 text-white'
               : 'bg-will-purple text-white hover:bg-will-purple/90'
           }`}
         >
-          {copied ? 'Copied!' : 'Copy Link'}
+          {copied ? 'Copied!' : canShare ? 'Share Link' : 'Copy Link'}
         </button>
       </div>
     </div>

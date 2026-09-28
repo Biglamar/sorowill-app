@@ -33,4 +33,10 @@ describe('HeaderContextArea', () => {
     );
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
+
+  it('renders a fallback instead of throwing when theme context is missing', () => {
+    expect(() => render(<HeaderContextArea />)).not.toThrow();
+    expect(screen.getByRole('button', { name: 'Theme loading' })).toBeDisabled();
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+  });
 });
