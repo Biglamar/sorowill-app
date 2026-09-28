@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { formatUSDC, toStroops, validateBeneficiaries, type Beneficiary } from '@sorowill/sdk';
@@ -16,7 +16,12 @@ import { BeneficiaryForm } from '@/components/BeneficiaryForm';
 import { GuardianForm } from '@/components/GuardianForm';
 import { validateGuardians } from '@/lib/guardianValidation';
 import { useStableRowIds } from '@/lib/useStableRowIds';
-import { parseDraft, parsePeriodInput } from '@/lib/draftValidation';
+import {
+  DRAFT_STORAGE_KEY,
+  loadDraft,
+  parsePeriodInput,
+  type FormStateDraft,
+} from '@/lib/draftValidation';
 import { useToast } from '@/components/Toast';
 
 const CHECKIN_OPTIONS = [30, 60, 90, 180, 365];
@@ -27,7 +32,7 @@ const GRACE_OPTIONS = [3, 7, 14];
 const SAFE_CHECKIN_WINDOW_DAYS = 60;
 
 const STEP_LABELS = ['Amount', 'Beneficiaries', 'Timing', 'Guardians', 'Review'];
-const STORAGE_KEY = 'sorowill-form-draft';
+const STORAGE_KEY = DRAFT_STORAGE_KEY;
 
 interface FormState {
   step: number;
@@ -75,6 +80,9 @@ export default function NewWillPage() {
   const [guardians, setGuardians] = useState<string[]>([]);
   const [cloneLoading, setCloneLoading] = useState(false);
   const [resumeAvailable, setResumeAvailable] = useState(false);
+  // Validated draft captured on mount, before the autosave effect below
+  // overwrites localStorage with the fresh form's defaults.
+  const pendingDraftRef = useRef<FormStateDraft | null>(null);
 
   const stableGuardianIds = useStableRowIds(guardians.length);
 
@@ -102,19 +110,17 @@ export default function NewWillPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw && !cloneFromId) {
-        const draft = parseDraft(raw);
-        if (draft) {
-          setResumeAvailable(true);
-        } else {
-          // Corrupted / stale draft — discard silently here; the user will see
-          // the toast once the component has finished mounting.
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      }
+    if (typeof window === 'undefined' || cloneFromId) return;
+    const result = loadDraft(localStorage);
+    if (result.status === 'valid') {
+      pendingDraftRef.current = result.draft;
+      setResumeAvailable(true);
+    } else if (result.status === 'invalid') {
+      // loadDraft already removed the corrupted / stale draft from storage.
+      toast.info('Saved draft was invalid and has been discarded.');
     }
+    // toast is a new object each render; this should only run on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloneFromId]);
 
   useEffect(() => {
@@ -194,24 +200,17 @@ export default function NewWillPage() {
   }, [step, token, amount, beneficiaries, checkinPeriodDays, gracePeriodDays, guardians]);
 
   function resumeDraft() {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const state = parseDraft(raw);
-      if (state) {
-        setStep(state.step);
-        setToken(state.token);
-        setAmount(state.amount);
-        setBeneficiaries(state.beneficiaries);
-        setCheckinPeriodDays(state.checkinPeriodDays);
-        setGracePeriodDays(state.gracePeriodDays);
-        setGuardians(state.guardians);
-        setResumeAvailable(false);
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-        setResumeAvailable(false);
-        toast.info('Saved draft was invalid and has been discarded.');
-      }
-    }
+    const state = pendingDraftRef.current;
+    pendingDraftRef.current = null;
+    setResumeAvailable(false);
+    if (!state) return;
+    setStep(state.step);
+    setToken(state.token);
+    setAmount(state.amount);
+    setBeneficiaries(state.beneficiaries);
+    setCheckinPeriodDays(state.checkinPeriodDays);
+    setGracePeriodDays(state.gracePeriodDays);
+    setGuardians(state.guardians);
   }
 
   function setMaxAmount() {
