@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { verifyMessage } from 'viem';
 
+import { rejectUnsupportedContentType } from '@/lib/contentType';
 import { registerReminderSubscription } from '@/lib/reminders';
 import { getSoroWillClient } from '@/lib/sorowill';
 
 export async function POST(request: Request) {
+  const unsupported = rejectUnsupportedContentType(request);
+  if (unsupported) return unsupported;
+
   try {
     const body = await request.json();
     const willId = typeof body?.willId === 'string' ? body.willId : '';
