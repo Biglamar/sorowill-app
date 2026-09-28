@@ -59,8 +59,9 @@ export default function InheritPageClient({ id }: { id: string }) {
       if (isMounted.current) {
         setLoading(false);
       }
-    }
-  }, [willId]);
+    },
+    [willId],
+  );
 
   useEffect(() => {
     void safeGetPublicKey().then((key) => {
@@ -71,8 +72,19 @@ export default function InheritPageClient({ id }: { id: string }) {
   }, []);
 
   useEffect(() => {
-    void refetch();
-  }, [refetch]);
+    if (!isValidWillId(willId)) {
+      return;
+    }
+    // Cancel (ignore) the in-flight request when willId changes or on unmount
+    // so stale responses never land in state.
+    const controller = new AbortController();
+    setLoading(true);
+    void refetch(controller.signal);
+    return () => {
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch is derived solely from willId
+  }, [willId]);
 
   useEffect(() => {
     if (!will || will.status !== WillStatus.Triggered) return;
