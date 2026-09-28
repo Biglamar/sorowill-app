@@ -138,8 +138,7 @@
     "couldNotLoad": "No se pudo cargar este testamento",
     "releaseEarlyTitle": "Liberar anticipadamente al beneficiario",
     "amountUSDC": "Monto (USDC)",
-    "recipientAddress": "Dirección del destinatario",
-    "earlyReleaseComingSoon": "Nota: La liberación parcial anticipada requiere soporte del SDK (próximamente)"
+    "recipientAddress": "Dirección del destinatario"
   },
   "status": {
     "active": "Activo",
@@ -151,28 +150,24 @@
     "releasedDescription": "La herencia ha sido distribuida a todos los beneficiarios.",
     "cancelledDescription": "El propietario canceló este testamento y retiró el saldo."
   },
-  "errors": {
-    "couldNotLoadWill": "No se pudo cargar el testamento — verifica tu conexión e inténtalo de nuevo.",
-    "couldNotLoadDashboard": "No se pudo cargar tu panel de control — verifica tu conexión e inténtalo de nuevo.",
-    "couldNotLoadInheritance": "No se pudo cargar el testamento — verifica tu conexión e inténtalo de nuevo.",
-    "tryAgain": "Intentar de nuevo",
-    "retry": "Reintentar",
-    "cloneNotFound": "El testamento ha sido eliminado — ya no existe en la cadena.",
-    "clonePermission": "Ya no tienes acceso a este testamento.",
-    "cloneNetwork": "No se puede obtener el testamento — verifica tu conexión e inténtalo de nuevo."
-  },
-  "inherit": {
-    "title": "Herencia — Testamento #{id}",
-    "description": "Si el propietario de un SoroWill fallece o se vuelve inalcanzable, esta página permite a un beneficiario nombrado ver — y, una vez transcurrido el período de gracia, activar — la distribución en cadena del saldo del testamento.",
-    "yourShare": "Tu parte correspondiente",
-    "allBeneficiaries": "Todos los beneficiarios",
-    "notABeneficiary": "El monedero conectado no es uno de los beneficiarios de este testamento.",
-    "connectWallet": "Conecta un monedero para ver tu parte correspondiente.",
-    "alreadyReleased": "Este testamento ya ha sido distribuido a todos los beneficiarios en una sola transacción.",
-    "notReadyYet": "Este testamento aún no está listo para liberarse. La distribución solo está disponible una vez que el propietario pierda un chequeo y haya transcurrido completamente el período de gracia.",
-    "claimInheritance": "Reclamar Herencia",
-    "claiming": "Reclamando…",
-    "couldNotLoad": "No se pudo cargar este testamento",
-    "invalidWillId": "ID de testamento inválido"
+  "faq": {
+    "items": [
+      { "question": "¿Cómo funciona SoroWill?", "answer": "SoroWill es un contrato inteligente en Stellar Soroban que automatiza la herencia." },
+      { "question": "¿Qué ocurre si pierdo un chequeo?", "answer": "Comienza un período de gracia y aún puedes hacer el chequeo antes de que termine." },
+      { "question": "¿Puedo actualizar mis beneficiarios?", "answer": "Sí, mientras tu testamento esté activo." },
+      { "question": "¿Puedo cancelar mi testamento?", "answer": "Sí, mientras permanezca activo." },
+      { "question": "¿Qué son los guardianes?", "answer": "Direcciones de confianza que pueden ayudar a activar una liberación anticipada." },
+      { "question": "¿Puedo recuperar fondos durante la gracia?", "answer": "Sí, realiza el chequeo antes de que termine." },
+      { "question": "¿Qué tokens son compatibles?", "answer": "SoroWill admite USDC en Stellar." },
+      { "question": "¿SoroWill es sin confianza?", "answer": "Sí. El contrato inteligente aplica el resultado configurado." },
+      { "question": "¿Puedo acceder al testamento de otra persona?", "answer": "No. El acceso está limitado a propietarios, beneficiarios y guardianes." },
+      { "question": "¿Qué pasa si pierdo mi billetera?", "answer": "Los guardianes y beneficiarios siguen el proceso configurado." },
+      { "question": "¿Pueden los beneficiarios consultar el estado?", "answer": "Sí, mediante la página de verificación compartida." },
+      { "question": "¿Cómo sé que mi testamento está seguro?", "answer": "Los testamentos están protegidos por el contrato SoroWill en Stellar." },
+      { "question": "¿Puedo usar direcciones federadas?", "answer": "Sí, resuelve las direcciones nombre*dominio antes de enviar." },
+      { "question": "¿Qué pasa si olvido mi fecha límite?", "answer": "La página del testamento muestra tu próximo chequeo." },
+      { "question": "¿Hay tarifas?", "answer": "Pagas las tarifas estándar de la red Stellar." },
+      { "question": "¿Cómo reclamo mi herencia?", "answer": "Reclámala desde la página de herencia después de la liberación." }
+    ]
   }
 }

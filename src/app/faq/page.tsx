@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 const FAQs = [
   {
@@ -14,7 +15,7 @@ const FAQs = [
   {
     question: 'Can I update my beneficiaries after creating a will?',
     answer:
-      'Yes, while you are active (before a check-in is missed), you can update your will with new beneficiaries, adjust percentages, or change your check-in and grace period settings. This is done by creating a new will with cloned settings and canceling the old one.',
+      'Yes. While active, the will details page lets you update beneficiary addresses and percentage splits in place. Check-in and grace periods are set when the will is created.',
   },
   {
     question: 'Can I cancel my will?',
@@ -34,7 +35,7 @@ const FAQs = [
   {
     question: 'What tokens does SoroWill support?',
     answer:
-      'SoroWill currently supports USDC on Stellar. You specify the token contract address when creating a will. Make sure you use the correct contract address for your network (testnet vs. mainnet).',
+      'A will accepts a token contract address, so it is not limited to USDC. Select a compatible token on the configured Stellar network.',
   },
   {
     question: 'Is SoroWill trustless?',
@@ -44,7 +45,7 @@ const FAQs = [
   {
     question: 'Can I see other wills or access someone else\'s will?',
     answer:
-      'No. Will details are private and can only be viewed by the will owner using their connected wallet. Beneficiaries and guardians can view their relevant information through dedicated pages.',
+      'The public verification page can show a will without a wallet. Actions and beneficiary-specific views still require the appropriate connected wallet.',
   },
   {
     question: 'What happens if I lose access to my wallet?',
@@ -54,7 +55,7 @@ const FAQs = [
   {
     question: 'Can beneficiaries check their inheritance status?',
     answer:
-      'Yes. Beneficiaries can view the status of wills they are named in by using the share verification page. They can see the amount, beneficiary split, and current check-in status.',
+      'Yes. The public verification page shows beneficiaries, percentage splits, and the next deadline. It does not disclose the locked amount; claiming happens from the inheritance page after release.',
   },
   {
     question: 'How do I know my will is safe?',
@@ -84,6 +85,7 @@ const FAQs = [
 ];
 
 export default function FAQPage() {
+  const t = useTranslations('faq');
   return (
     <div className="mx-auto max-w-3xl space-y-12 px-4 py-8 sm:py-16 sm:px-0">
       <section className="space-y-4">
@@ -134,8 +136,8 @@ export default function FAQPage() {
             <div>
               <h3 className="font-semibold text-will-light">Miss a Check-in</h3>
               <p className="mt-1 text-sm text-will-light/60">
-                If you do not check in by the deadline, anyone can trigger the grace period. Your
-                beneficiaries are notified. You still have time to respond—just check in and the
+                If you do not check in by the deadline, anyone can trigger the grace period. No
+                automatic beneficiary notification is sent. You still have time to respond—just check in and the
                 will remains active.
               </p>
             </div>
@@ -171,18 +173,22 @@ export default function FAQPage() {
         <h2 className="text-2xl font-bold text-will-light">Frequently Asked Questions</h2>
 
         <div className="space-y-4">
-          {FAQs.map((faq) => (
+          {FAQs.map((faq, index) => {
+            const translatedQuestion = t(`items.${index}.question`);
+            const translatedAnswer = t(`items.${index}.answer`);
+            return (
             <details
-              key={faq.question}
+              key={translatedQuestion}
               className="rounded-xl border border-white/10 bg-white/5 p-6 transition-all [&[open]]:bg-white/10"
             >
               <summary className="flex cursor-pointer items-center justify-between font-semibold text-will-light hover:text-white">
-                <span>{faq.question}</span>
+                <span>{translatedQuestion}</span>
                 <span className="ml-2 text-will-purple">{/* + */}▸</span>
               </summary>
-              <p className="mt-4 text-sm text-will-light/70">{faq.answer}</p>
+              <p className="mt-4 text-sm text-will-light/70">{translatedAnswer}</p>
             </details>
-          ))}
+            );
+          })}
         </div>
       </section>
 
