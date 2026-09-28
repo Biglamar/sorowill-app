@@ -150,5 +150,25 @@
     "triggeredDescription": "A check-in deadline was missed. The owner can still prove they are alive.",
     "releasedDescription": "The inheritance has been distributed to all beneficiaries.",
     "cancelledDescription": "The owner cancelled this will and withdrew the balance."
+  },
+  "faq": {
+    "items": [
+      { "question": "How does SoroWill work?", "answer": "SoroWill is a smart contract on Stellar Soroban that automates inheritance." },
+      { "question": "What happens if I miss a check-in?", "answer": "A grace period begins and you can still check in before it expires." },
+      { "question": "Can I update my beneficiaries?", "answer": "Yes, while your will is active." },
+      { "question": "Can I cancel my will?", "answer": "Yes, while it remains active." },
+      { "question": "What are guardians?", "answer": "Trusted addresses that can help trigger an early release." },
+      { "question": "Can I recover funds during grace?", "answer": "Yes, check in before the grace period ends." },
+      { "question": "What tokens are supported?", "answer": "SoroWill currently supports USDC on Stellar." },
+      { "question": "Is SoroWill trustless?", "answer": "Yes. The smart contract enforces the configured outcome." },
+      { "question": "Can I access someone else's will?", "answer": "No. Access is limited to relevant owners, beneficiaries, and guardians." },
+      { "question": "What if I lose my wallet?", "answer": "Guardians and beneficiaries follow the configured recovery process." },
+      { "question": "Can beneficiaries check status?", "answer": "Yes, through the share verification page." },
+      { "question": "How do I know my will is safe?", "answer": "Wills are secured by the SoroWill contract on Stellar." },
+      { "question": "Can I use federated addresses?", "answer": "Yes, resolve name*domain addresses before submitting." },
+      { "question": "What if I forget my deadline?", "answer": "The will details page shows your next check-in deadline." },
+      { "question": "Are there any fees?", "answer": "You pay standard Stellar network fees." },
+      { "question": "How do I claim my inheritance?", "answer": "Claim through the inheritance page after release." }
+    ]
   }
 }

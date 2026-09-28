@@ -9,7 +9,7 @@ import { WillStatus, type Will, formatUSDC, toStroops } from '@sorowill/sdk';
 import { safeGetPublicKey } from '@/lib/freighter';
 import { getSoroWillClient, getWillsByGuardian } from '@/lib/sorowill';
 import { getInvalidBatchAmounts, isValidAmount } from '@/lib/amount';
-import { formatError } from '@/lib/errors';
+import { formatError, formatLoadError } from '@/lib/errors';
 import { exportWillsToCSV } from '@/lib/willExport';
 import { useToast } from '@/components/Toast';
 import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
@@ -134,7 +134,8 @@ export default function DashboardPage() {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load dashboard wills', err);
+      setError(formatLoadError(err));
     } finally {
       if (isMounted.current) {
         setLoading(false);

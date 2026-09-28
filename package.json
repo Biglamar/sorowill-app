@@ -20,6 +20,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "analytics:mock": "echo 'plausible'"
+    ,"check:changelog": "node scripts/validate-changelog.mjs"
   },
   "dependencies": {
     "@sorowill/sdk": "^0.1.0",
