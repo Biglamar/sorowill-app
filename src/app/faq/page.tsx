@@ -90,20 +90,15 @@ export default function FAQPage() {
     <div className="mx-auto max-w-3xl space-y-12 px-4 py-8 sm:py-16 sm:px-0">
       <section className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight text-will-light sm:text-4xl">
-          How it Works & FAQ
+          {t('title')}
         </h1>
-        <p className="text-lg text-will-light/70">
-          Everything you need to know about SoroWill, the trustless on-chain inheritance protocol
-          for Stellar.
-        </p>
+        <p className="text-lg text-will-light/70">{t('subtitle')}</p>
       </section>
 
       <section className="space-y-8">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-will-light">The Full Lifecycle</h2>
-          <p className="text-sm text-will-light/60">
-            Here&apos;s how your will progresses from creation to resolution:
-          </p>
+          <h2 className="text-2xl font-bold text-will-light">{t('lifecycle.heading')}</h2>
+          <p className="text-sm text-will-light/60">{t('lifecycle.description')}</p>
         </div>
 
         <div className="space-y-6">
@@ -141,36 +136,12 @@ export default function FAQPage() {
                 will remains active.
               </p>
             </div>
-          </div>
-
-          <div className="flex gap-4 rounded-xl border border-white/10 bg-white/5 p-6">
-            <span className="font-mono text-sm font-semibold text-will-purple">04</span>
-            <div>
-              <h3 className="font-semibold text-will-light">Grace Period</h3>
-              <p className="mt-1 text-sm text-will-light/60">
-                A grace period (3, 7, or 14 days) begins. If you check in during this time, your
-                will remains active. If you do not respond, the grace period expires and funds are
-                released.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-4 rounded-xl border border-white/10 bg-white/5 p-6">
-            <span className="font-mono text-sm font-semibold text-will-purple">05</span>
-            <div>
-              <h3 className="font-semibold text-will-light">Funds Released</h3>
-              <p className="mt-1 text-sm text-will-light/60">
-                Once the grace period expires, the contract automatically distributes your USDC to
-                your beneficiaries according to the percentages you set. Beneficiaries can then
-                claim their share.
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
       <section className="space-y-6">
-        <h2 className="text-2xl font-bold text-will-light">Frequently Asked Questions</h2>
+        <h2 className="text-2xl font-bold text-will-light">{t('faqHeading')}</h2>
 
         <div className="space-y-4">
           {FAQs.map((faq, index) => {
@@ -193,15 +164,13 @@ export default function FAQPage() {
       </section>
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
-        <h2 className="text-xl font-semibold text-will-light">Ready to create your will?</h2>
-        <p className="mt-2 text-sm text-will-light/60">
-          Secure your crypto legacy with SoroWill.
-        </p>
+        <h2 className="text-xl font-semibold text-will-light">{t('cta.title')}</h2>
+        <p className="mt-2 text-sm text-will-light/60">{t('cta.description')}</p>
         <Link
           href="/will/new"
           className="mt-4 inline-block rounded-full bg-will-purple px-6 py-3 text-sm font-semibold text-white transition hover:bg-will-purple/90"
         >
-          Create Your Will
+          {t('cta.button')}
         </Link>
       </section>
     </div>

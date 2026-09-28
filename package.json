@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prebuild": "vitest run tests/unit/messageParity.test.ts",
     "start": "next start",
     "start:e2e": "next build && next start",
     "lint": "eslint src",
