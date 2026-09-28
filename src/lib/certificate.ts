@@ -1,9 +1,24 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 
-import { formatDeadline, formatUSDC, WillStatus, type Will } from '@sorowill/sdk';
+import { formatDeadline, formatUSDC, type Will } from '@sorowill/sdk';
 
 import { nextCheckinDeadline } from '@/lib/deadlines';
+
+function parseCreationDate(value: unknown): Date | null {
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === 'string') {
+    date = new Date(value);
+  } else if (typeof value === 'number') {
+    date = new Date(value < 1_000_000_000_000 ? value * 1000 : value);
+  } else {
+    return null;
+  }
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 /**
  * Generates a QR code data URL entirely client-side for `data`, so the
@@ -63,9 +78,13 @@ export async function downloadWillCertificate(will: Will, verifyUrl: string): Pr
     `Locked balance: ${formatUSDC(BigInt(will.balance))} USDC`,
     `Check-in period: ${will.checkinPeriodDays} day${will.checkinPeriodDays === 1 ? '' : 's'}`,
     `Grace period: ${will.gracePeriodDays} day${will.gracePeriodDays === 1 ? '' : 's'}`,
+    `Check-in deadline: ${formatDeadline(nextCheckinDeadline(will))}`,
   ];
-  if (will.status === WillStatus.Active) {
-    lines.push(`Next check-in due: ${formatDeadline(nextCheckinDeadline(will))}`);
+  if ('createdAt' in will) {
+    const createdAt = parseCreationDate(will.createdAt);
+    if (createdAt) {
+      lines.splice(2, 0, `Will created: ${formatDeadline(createdAt)}`);
+    }
   }
   for (const line of lines) {
     ensureSpace(20);

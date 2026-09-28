@@ -73,7 +73,7 @@ describe('downloadWillCertificate', () => {
     textLines.length = 0;
   });
 
-  it('includes a "Next check-in due" line whose date matches nextCheckinDeadline', async () => {
+  it('includes the check-in deadline whose date matches nextCheckinDeadline', async () => {
     const will = makeWill();
     const expectedDeadline = nextCheckinDeadline(will);
 
@@ -81,20 +81,20 @@ describe('downloadWillCertificate', () => {
 
     // formatDeadline is mocked to return toISOString(), so we can reconstruct
     // the exact string the function should have written.
-    const expectedLine = `Next check-in due: ${expectedDeadline.toISOString()}`;
+    const expectedLine = `Check-in deadline: ${expectedDeadline.toISOString()}`;
     expect(textLines).toContain(expectedLine);
   });
 
-  it('omits the "Next check-in due" line for non-Active wills', async () => {
+  it('includes the check-in deadline for non-Active wills', async () => {
     const will = makeWill({ status: 'Triggered' as WillStatus });
+    const expectedDeadline = nextCheckinDeadline(will);
 
     await downloadWillCertificate(will, 'https://example.com/verify/will-test-001');
 
-    const hasDeadlineLine = textLines.some((l) => l.startsWith('Next check-in due:'));
-    expect(hasDeadlineLine).toBe(false);
+    expect(textLines).toContain(`Check-in deadline: ${expectedDeadline.toISOString()}`);
   });
 
-  it('deadline line reflects lastCheckin + checkinPeriodDays', async () => {
+  it('check-in deadline reflects lastCheckin + checkinPeriodDays', async () => {
     // Use a fixed lastCheckin and period so we can compute the expected Date
     // independently of the shared helper, confirming both agree.
     const lastCheckin = new Date('2026-06-01T00:00:00.000Z');
@@ -109,7 +109,21 @@ describe('downloadWillCertificate', () => {
 
     await downloadWillCertificate(will, 'https://example.com/verify/will-test-001');
 
-    const expectedLine = `Next check-in due: ${sharedDeadline.toISOString()}`;
+    const expectedLine = `Check-in deadline: ${sharedDeadline.toISOString()}`;
     expect(textLines).toContain(expectedLine);
+  });
+
+  it('never writes Stellar secret-key material (docs/KEY_DERIVATION.md)', async () => {
+    // SoroWill derives no keys: the certificate is built only from public
+    // on-chain fields, so no StrKey secret seed (S + 55 base32 chars) may appear.
+    const will = makeWill();
+
+    await downloadWillCertificate(will, 'https://example.com/verify/will-test-001');
+
+    expect(textLines.length).toBeGreaterThan(0);
+    for (const line of textLines) {
+      expect(line).not.toMatch(/\bS[A-Z2-7]{55}\b/);
+    }
+    expect(textLines).toContain(`Owner: ${will.owner}`);
   });
 });

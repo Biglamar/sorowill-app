@@ -1,10 +1,25 @@
 import { NextResponse } from 'next/server';
 import { verifyMessage } from 'viem';
 
+import { rejectUnsupportedContentType } from '@/lib/contentType';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { registerReminderSubscription } from '@/lib/reminders';
 import { getSoroWillClient } from '@/lib/sorowill';
 
+const IP_LIMIT = 10;
+const IP_WINDOW_MS = 60 * 60 * 1000;
+
 export async function POST(request: Request) {
+  const rate = checkRateLimit(`reminders:register:${getClientIp(request)}`, IP_LIMIT, IP_WINDOW_MS);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { ok: false, error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
+    );
+  }
+  const unsupported = rejectUnsupportedContentType(request);
+  if (unsupported) return unsupported;
+
   try {
     const body = await request.json();
     const willId = typeof body?.willId === 'string' ? body.willId : '';

@@ -71,3 +71,11 @@ export function useTheme() {
   }
   return context;
 }
+
+/**
+ * Non-throwing variant of `useTheme` for components (e.g. the header's
+ * ThemeToggle) that may render before or outside a ThemeProvider.
+ */
+export function useOptionalTheme(): ThemeContextType | undefined {
+  return useContext(ThemeContext);
+}

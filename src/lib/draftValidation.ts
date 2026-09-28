@@ -8,6 +8,12 @@
 
 import type { Beneficiary } from '@sorowill/sdk';
 
+/** localStorage key the NewWill form autosaves its draft under. */
+export const DRAFT_STORAGE_KEY = 'sorowill-form-draft';
+
+/** Highest wizard step index (Amount, Beneficiaries, Timing, Guardians, Review). */
+export const DRAFT_MAX_STEP = 4;
+
 export interface FormStateDraft {
   step: number;
   token: string;
@@ -21,7 +27,7 @@ export interface FormStateDraft {
 function isBeneficiary(value: unknown): value is Beneficiary {
   if (typeof value !== 'object' || value === null) return false;
   const obj = value as Record<string, unknown>;
-  return typeof obj.address === 'string' && typeof obj.percentage === 'number';
+  return typeof obj.address === 'string' && Number.isFinite(obj.percentage);
 }
 
 /**
@@ -33,7 +39,9 @@ export function isValidDraft(value: unknown): value is FormStateDraft {
   if (typeof value !== 'object' || value === null) return false;
   const obj = value as Record<string, unknown>;
 
-  if (typeof obj.step !== 'number') return false;
+  // An out-of-range step would render an empty wizard with no way forward.
+  if (typeof obj.step !== 'number' || !Number.isInteger(obj.step)) return false;
+  if (obj.step < 0 || obj.step > DRAFT_MAX_STEP) return false;
   if (typeof obj.token !== 'string') return false;
   if (typeof obj.amount !== 'string') return false;
   if (!Array.isArray(obj.beneficiaries)) return false;
@@ -61,6 +69,35 @@ export function parseDraft(raw: string | null): FormStateDraft | null {
   } catch {
     return null;
   }
+}
+
+export type DraftLoadResult =
+  | { status: 'missing'; draft: null }
+  | { status: 'invalid'; draft: null }
+  | { status: 'valid'; draft: FormStateDraft };
+
+/**
+ * Reads the draft from `storage` and validates it before anything uses it.
+ * An invalid draft (corrupted JSON or a stale shape) is removed from storage
+ * so it is never offered again; the caller decides how to tell the user.
+ */
+export function loadDraft(storage: Pick<Storage, 'getItem' | 'removeItem'>): DraftLoadResult {
+  const raw = storage.getItem(DRAFT_STORAGE_KEY);
+  if (!raw) return { status: 'missing', draft: null };
+  const draft = parseDraft(raw);
+  if (!draft) {
+    storage.removeItem(DRAFT_STORAGE_KEY);
+    return { status: 'invalid', draft: null };
+  }
+  return { status: 'valid', draft };
+}
+
+/**
+ * Removes the saved draft. Called after a will is created and when the wallet
+ * disconnects, so a finished or another account's draft is never offered.
+ */
+export function clearDraft(storage: Pick<Storage, 'removeItem'>): void {
+  storage.removeItem(DRAFT_STORAGE_KEY);
 }
 
 // ---------------------------------------------------------------------------
