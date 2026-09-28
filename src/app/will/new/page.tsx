@@ -39,6 +39,15 @@ interface FormState {
   guardians: string[];
 }
 
+export function isValidDraft(value: unknown): value is FormState {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as FormState;
+  return Number.isInteger(draft.step) && draft.step >= 0 && draft.step < STEP_LABELS.length &&
+    typeof draft.token === 'string' && typeof draft.amount === 'string' && Array.isArray(draft.beneficiaries) &&
+    Number.isInteger(draft.checkinPeriodDays) && draft.checkinPeriodDays > 0 &&
+    Number.isInteger(draft.gracePeriodDays) && draft.gracePeriodDays > 0 && Array.isArray(draft.guardians);
+}
+
 /** True when a check-in period exceeds the contract's safe storage TTL window. */
 function isUnsafeCheckinPeriod(days: number): boolean {
   return days > SAFE_CHECKIN_WINDOW_DAYS;
@@ -115,7 +124,7 @@ export default function NewWillPage() {
         }
       }
     }
-  }, [cloneFromId]);
+  }, [cloneFromId, toast]);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -340,6 +349,11 @@ export default function NewWillPage() {
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
+    if (!Number.isInteger(checkinPeriodDays) || checkinPeriodDays <= 0 || !Number.isInteger(gracePeriodDays) || gracePeriodDays <= 0) {
+      setError('Check-in and grace periods must be positive whole numbers.');
+      setSubmitting(false);
+      return;
+    }
     
     // Validate guardians before submission
     if (guardianTopError !== null) {
@@ -530,6 +544,7 @@ export default function NewWillPage() {
                   max={3650}
                   step={1}
                   value={checkinPeriodDays}
+                  step={1}
                   onChange={(e) => {
                     setCheckinPeriodError(null);
                     const parsed = parsePeriodInput(e.target.value);
@@ -596,6 +611,7 @@ export default function NewWillPage() {
                   max={3650}
                   step={1}
                   value={gracePeriodDays}
+                  step={1}
                   onChange={(e) => {
                     setGracePeriodError(null);
                     const parsed = parsePeriodInput(e.target.value);
