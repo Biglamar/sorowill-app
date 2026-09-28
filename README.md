@@ -4,7 +4,7 @@
 
 **On-chain inheritance, in your browser**
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Stellar](https://img.shields.io/badge/Stellar-Soroban-08b5e5?logo=stellar)](https://developers.stellar.org/)
@@ -20,7 +20,7 @@ SoroWill is a trustless, on-chain inheritance protocol on Stellar Soroban. This 
 
 ## Tech Stack
 
-- **Next.js 14** (App Router)
+- **Next.js 16** (App Router; `next` ^16.3.0)
 - **TypeScript** (strict mode)
 - **Tailwind CSS 3**
 - **[@sorowill/sdk](../sorowill-sdk)** for all contract interaction and Freighter wallet handling
@@ -38,7 +38,8 @@ cd sorowill-app
 #   volta install  (volta)
 npm install
 cp .env.example .env.local
-# fill in NEXT_PUBLIC_CONTRACT_ID with your deployed SoroWill contract address
+# fill in NEXT_PUBLIC_CONTRACT_ID_TESTNET (and NEXT_PUBLIC_CONTRACT_ID_MAINNET
+# if you're targeting mainnet) with your deployed SoroWill contract address
 npm run dev
 ```
 
@@ -49,7 +50,9 @@ npm run dev
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_STELLAR_NETWORK` | Stellar network to connect to: `testnet` or `mainnet` |
-| `NEXT_PUBLIC_CONTRACT_ID` | Address of the deployed SoroWill contract |
+| `NEXT_PUBLIC_CONTRACT_ID_MAINNET` | Address of the deployed SoroWill contract on mainnet. **Required** when the network is mainnet; there is no fallback. |
+| `NEXT_PUBLIC_CONTRACT_ID_TESTNET` | Address of the deployed SoroWill contract on testnet (preferred). |
+| `NEXT_PUBLIC_CONTRACT_ID` | Legacy single-var fallback. Used only on testnet when `NEXT_PUBLIC_CONTRACT_ID_TESTNET` is unset. Never used on mainnet. |
 | `NEXT_PUBLIC_RPC_URL` | Soroban RPC endpoint (defaults to the public testnet RPC) |
 | `RESEND_API_KEY` | API key for reminder emails (optional; leave unset to skip sending) |
 | `RESEND_FROM_EMAIL` | Verified Resend sender address used for reminder emails |
@@ -207,6 +210,10 @@ curl --fail -X POST https://your-app.example.com/api/reminders/dispatch \
 - **No Duplicate Triggers:** Do not add a second independent scheduler unless absolutely necessary; doing so causes the dispatch route to run multiple times in quick succession. If a backup scheduler is needed, give it a distinctly different schedule (e.g., a different hour) and document the intent here.
 - **Race Condition Mitigation:** The dispatch route records `wellBeforeSentAt` and `imminentSentAt` timestamps per will in the KV store immediately after each send. Subscriptions with a recorded timestamp of that kind are skipped. This prevents duplicate reminders even if two dispatch runs overlap, though the lack of locking means a true race condition is still theoretically possible—yet another reason to keep a single scheduler.
 - **Error Visibility:** GitHub Actions fails the run when the dispatch endpoint returns a non-2xx response, making broken dispatch immediately visible in the Actions UI.
+
+## Keys and recovery
+
+SoroWill is non-custodial and derives no keys; your wallet (e.g. Freighter) holds them. See [docs/KEY_DERIVATION.md](./docs/KEY_DERIVATION.md) for the wallet derivation path (SEP-0005, `m/44'/148'/x'`), how to verify it, and how to recover access.
 
 ## Contributing via Drips Wave
 

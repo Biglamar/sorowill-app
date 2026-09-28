@@ -6,7 +6,7 @@ import { calculateShares, formatUSDC, WillStatus, type Will } from '@sorowill/sd
 
 import { safeGetPublicKey, truncateAddress } from '@/lib/freighter';
 import { getSoroWillClient, stellarExpertUrl } from '@/lib/sorowill';
-import { formatError } from '@/lib/errors';
+import { formatError, formatLoadError } from '@/lib/errors';
 import { graceDeadline } from '@/lib/deadlines';
 import { useToast } from '@/components/Toast';
 import { StatusBanner } from '@/components/StatusBanner';
@@ -14,6 +14,10 @@ import { CopyAddress } from '@/components/CopyAddress';
 
 function isValidWillId(id: string): boolean {
   return /^\d+$/.test(id);
+}
+
+export function claimIsAvailable(status: WillStatus, grace: Date | null, now: number): boolean {
+  return status === WillStatus.Triggered && grace !== null && now >= grace.getTime();
 }
 
 export default function InheritPageClient({ id }: { id: string }) {
@@ -26,6 +30,7 @@ export default function InheritPageClient({ id }: { id: string }) {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const isMounted = useRef(true);
 
@@ -48,13 +53,15 @@ export default function InheritPageClient({ id }: { id: string }) {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load inheritance will', err);
+      setError(formatLoadError(err));
     } finally {
       if (isMounted.current) {
         setLoading(false);
       }
-    }
-  }, [willId]);
+    },
+    [willId],
+  );
 
   useEffect(() => {
     void safeGetPublicKey().then((key) => {
@@ -65,8 +72,28 @@ export default function InheritPageClient({ id }: { id: string }) {
   }, []);
 
   useEffect(() => {
-    void refetch();
-  }, [refetch]);
+    if (!isValidWillId(willId)) {
+      return;
+    }
+    // Cancel (ignore) the in-flight request when willId changes or on unmount
+    // so stale responses never land in state.
+    const controller = new AbortController();
+    setLoading(true);
+    void refetch(controller.signal);
+    return () => {
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch is derived solely from willId
+  }, [willId]);
+
+  useEffect(() => {
+    if (!will || will.status !== WillStatus.Triggered) return;
+    const deadline = graceDeadline(will);
+    if (!deadline) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [will]);
 
   // Quick client-side validation before hitting the RPC layer
   if (!isValidWillId(willId)) {
@@ -89,6 +116,7 @@ export default function InheritPageClient({ id }: { id: string }) {
       await refetch();
       toast.success('Inheritance claimed successfully');
     } catch (err) {
+      console.error('[InheritPage] Failed to claim inheritance:', err);
       const message = formatError(err);
       setError(message);
       toast.error(message);
@@ -109,7 +137,9 @@ export default function InheritPageClient({ id }: { id: string }) {
   if (error && !will) {
     return (
       <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-        <h1 className="text-lg font-semibold text-red-300">Couldn&apos;t load this will</h1>
+        <h1 className="text-lg font-semibold text-red-300">
+          Could not load will — check your connection
+        </h1>
         <p className="mt-2 text-sm text-red-300/70">{error}</p>
         <button
           type="button"
@@ -137,7 +167,8 @@ export default function InheritPageClient({ id }: { id: string }) {
     : undefined;
 
   const grace = graceDeadline(will);
-  const canClaim = will.status === WillStatus.Triggered && grace !== null && Date.now() >= grace.getTime();
+  const canClaim = claimIsAvailable(will.status, grace, now);
+  const secondsUntilClaim = grace ? Math.max(0, Math.ceil((grace.getTime() - now) / 1000)) : 0;
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -209,6 +240,7 @@ export default function InheritPageClient({ id }: { id: string }) {
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-will-light/60">
           This will isn&apos;t ready to release yet. Distribution only becomes available once the owner
           misses a check-in and the grace period has fully elapsed.
+          {grace && secondsUntilClaim > 0 ? <time dateTime={grace.toISOString()} className="mt-2 block font-mono text-xs">Available in {Math.floor(secondsUntilClaim / 86400)}d {Math.floor((secondsUntilClaim % 86400) / 3600)}h {Math.floor((secondsUntilClaim % 3600) / 60)}m</time> : null}
         </div>
       )}
 

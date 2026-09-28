@@ -90,6 +90,9 @@ export function isValidStellarAddress(address: string): boolean {
   return verifyStellarStrKey(address);
 }
 
+/** Shown when a guardian row matches the will owner's own address (#386). */
+export const OWNER_AS_GUARDIAN_ERROR = 'You cannot be your own guardian';
+
 export interface GuardianValidationResult {
   rowErrors: string[];
   topError: string | null;
@@ -115,7 +118,7 @@ export function validateGuardians(
     }
 
     if (ownerAddress && g === ownerAddress) {
-      rowErrors[i] = 'A guardian cannot be the same as the will owner';
+      rowErrors[i] = OWNER_AS_GUARDIAN_ERROR;
       continue;
     }
 
