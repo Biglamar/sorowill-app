@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Metadata } from 'next';
 import { Footer } from '@/components/Footer';
 
@@ -8,7 +10,7 @@ export const metadata: Metadata = {
 
 const CHANGELOG_ENTRIES = [
   {
-    version: 'v1.0.0',
+    version: 'v0.1.0',
     date: 'July 2026',
     title: 'Launch',
     highlights: [
@@ -46,6 +48,10 @@ const CHANGELOG_ENTRIES = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export default function ChangelogPage() {
   return (
     <div className="space-y-8 pb-16">
@@ -64,22 +70,35 @@ export default function ChangelogPage() {
           >
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <h2 className="text-2xl font-bold text-will-light">{entry.version}</h2>
-                <p className="text-sm text-will-light/60">{entry.title}</p>
+                <h2 className="text-2xl font-bold text-will-light">v{entry.version}</h2>
+                {entry.sections[0] && (
+                  <p className="text-sm text-will-light/60">{entry.sections[0].heading}</p>
+                )}
               </div>
-              <time className="rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-will-light/70">
-                {entry.date}
-              </time>
+              {entry.date && (
+                <time className="rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-will-light/70">
+                  {entry.date}
+                </time>
+              )}
             </div>
 
-            <ul className="mt-4 space-y-3">
-              {entry.highlights.map((highlight) => (
-                <li key={highlight} className="flex gap-3 text-will-light/80">
-                  <span className="shrink-0 text-will-purple">▸</span>
-                  <span>{highlight}</span>
-                </li>
-              ))}
-            </ul>
+            {entry.sections.map((section) => (
+              <div key={section.heading} className="mt-4">
+                {entry.sections.length > 1 && (
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-will-light/50">
+                    {section.heading}
+                  </h3>
+                )}
+                <ul className="space-y-3">
+                  {section.items.map((item) => (
+                    <li key={item} className="flex gap-3 text-will-light/80">
+                      <span className="shrink-0 text-will-purple">▸</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
 
             {index === 0 && (
               <div className="mt-4 rounded-lg border border-will-purple/30 bg-will-purple/10 p-3">
@@ -93,22 +112,12 @@ export default function ChangelogPage() {
       <section className="rounded-lg border border-white/10 bg-white/5 p-6">
         <h3 className="text-lg font-semibold text-will-light">Future Roadmap</h3>
         <ul className="mt-4 space-y-2 text-will-light/80">
-          <li className="flex gap-3">
-            <span className="shrink-0 text-will-purple">◊</span>
-            <span>Multi-asset support (beyond USDC)</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 text-will-purple">◊</span>
-            <span>Guardian delegation and notification systems</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 text-will-purple">◊</span>
-            <span>Advanced inheritance triggers and conditions</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 text-will-purple">◊</span>
-            <span>Cross-chain interoperability</span>
-          </li>
+          {ROADMAP_ITEMS.map((item) => (
+            <li key={item} className="flex gap-3">
+              <span className="shrink-0 text-will-purple">◊</span>
+              <span>{item}</span>
+            </li>
+          ))}
         </ul>
       </section>
 

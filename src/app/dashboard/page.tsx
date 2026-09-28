@@ -9,7 +9,7 @@ import { WillStatus, type Will, formatUSDC, toStroops } from '@sorowill/sdk';
 import { safeGetPublicKey } from '@/lib/freighter';
 import { getSoroWillClient, getWillsByGuardian } from '@/lib/sorowill';
 import { getInvalidBatchAmounts, isValidAmount } from '@/lib/amount';
-import { formatError } from '@/lib/errors';
+import { formatError, formatLoadError } from '@/lib/errors';
 import { exportWillsToCSV } from '@/lib/willExport';
 import { useToast } from '@/components/Toast';
 import { useKeyboardShortcuts } from '@/lib/useKeyboardShortcuts';
@@ -56,6 +56,10 @@ function matchesSearch(will: Will, query: string): boolean {
   );
 }
 
+export function filterWills(wills: Will[], query: string, status: StatusFilter): Will[] {
+  return wills.filter((will) => matchesSearch(will, query) && (status === 'all' || will.status === status));
+}
+
 function CardSkeleton() {
   return (
     <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4">
@@ -81,7 +85,7 @@ export default function DashboardPage() {
   const [ownedWills, setOwnedWills] = useState<Will[]>([]);
   const [inheritingWills, setInheritingWills] = useState<Will[]>([]);
   const [guardianWills, setGuardianWills] = useState<Will[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [guardianScanWarning, setGuardianScanWarning] = useState(false);
@@ -134,7 +138,8 @@ export default function DashboardPage() {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load dashboard wills', err);
+      setError(formatLoadError(err));
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -166,6 +171,7 @@ export default function DashboardPage() {
       setError(null);
       toast.success('Data refreshed');
     } catch (err) {
+      console.error('[Dashboard] Failed to refresh wills:', err);
       const message = formatError(err);
       setError(message);
       toast.error(message);
@@ -174,17 +180,6 @@ export default function DashboardPage() {
     }
   }, [publicKey, toast]);
 
-  const handleExportCSV = useCallback(() => {
-    const csv = exportWillsToCSV(ownedWills);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `sorowill-wills-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [ownedWills]);
-
   useEffect(() => {
     void safeGetPublicKey().then((key) => {
       if (!isMounted.current) {
@@ -192,6 +187,10 @@ export default function DashboardPage() {
       }
       setPublicKey(key);
       setCheckedWallet(true);
+      // If no wallet is connected there is nothing to load — stop the spinner.
+      if (!key) {
+        setLoading(false);
+      }
     });
   }, []);
 
@@ -294,10 +293,18 @@ export default function DashboardPage() {
   const baseList =
     tab === 'owned' ? ownedWills : tab === 'inheriting' ? inheritingWills : guardianWills;
 
-  const activeList = baseList.filter(
-    (will) =>
-      matchesSearch(will, search) && (statusFilter === 'all' || will.status === statusFilter),
-  );
+  const activeList = filterWills(baseList, search, statusFilter);
+
+  const handleExportCSV = useCallback(() => {
+    const csv = exportWillsToCSV(activeList);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sorowill-wills-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [activeList]);
 
   const isFiltering = search.trim() !== '' || statusFilter !== 'all';
 
@@ -380,7 +387,7 @@ export default function DashboardPage() {
               onClick={handleExportCSV}
               className="rounded-full border border-white/20 px-4 py-2 text-sm text-will-light/80 transition hover:border-white/40 hover:text-will-light"
             >
-              Export CSV
+              Export CSV ({activeList.length})
             </button>
           )}
           <button
@@ -505,12 +512,20 @@ export default function DashboardPage() {
       ) : null}
 
       {error ? (
-        <div className="text-sm text-red-400 flex items-center gap-3" role="alert">
-          <span>{error}</span>
+        <div
+          className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-start justify-between gap-3"
+          role="alert"
+        >
+          <div>
+            <p className="text-sm font-semibold text-red-300">
+              Could not load your dashboard — check your connection
+            </p>
+            <p className="mt-1 text-xs text-red-300/70">{error}</p>
+          </div>
           <button
             type="button"
             onClick={handleRetry}
-            className="rounded-full border border-red-400/50 px-3 py-1 text-xs font-medium text-red-300 transition hover:bg-red-400/10"
+            className="shrink-0 rounded-full border border-red-400/50 px-3 py-1 text-xs font-medium text-red-300 transition hover:bg-red-400/10"
           >
             Try again
           </button>
