@@ -371,18 +371,23 @@ export default function NewWillPage() {
       return;
     }
 
-    // Defense-in-depth: block submission if any beneficiary address is still a
-    // federated address string. The user must resolve it to a real G... key first.
-    const unresolvedFederated = beneficiaries.filter((b) => isFederatedAddress(b.address));
-    if (unresolvedFederated.length > 0) {
-      setError(
-        'One or more beneficiary addresses are still federated addresses. Please resolve them to Stellar addresses before submitting.',
-      );
-      setSubmitting(false);
-      return;
-    }
-    
     try {
+      // Validate guardians before submission
+      if (guardianTopError !== null) {
+        setError('Please fix the guardian address errors before submitting.');
+        return;
+      }
+
+      // Defense-in-depth: block submission if any beneficiary address is still a
+      // federated address string. The user must resolve it to a real G... key first.
+      const unresolvedFederated = beneficiaries.filter((b) => isFederatedAddress(b.address));
+      if (unresolvedFederated.length > 0) {
+        setError(
+          'One or more beneficiary addresses are still federated addresses. Please resolve them to Stellar addresses before submitting.',
+        );
+        return;
+      }
+
       const client = getSoroWillClient();
       const { willId } = await client.createWill({
         token,
@@ -398,6 +403,7 @@ export default function NewWillPage() {
       router.push(`/will/${willId}`);
     } catch (err) {
       setError(formatError(err));
+    } finally {
       setSubmitting(false);
     }
   }
