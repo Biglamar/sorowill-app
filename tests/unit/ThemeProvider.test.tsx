@@ -66,4 +66,59 @@ describe('ThemeProvider (#320)', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(setItem.mock.calls.filter(([key]) => key === 'theme')).toEqual([['theme', 'light']]);
   });
+
+  it('restores the saved preference on mount across a reload (#394)', () => {
+    stubPrefersDark(true);
+
+    const first = render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole('button')).toHaveTextContent('dark');
+    fireEvent.click(screen.getByRole('button'));
+    expect(localStorage.getItem('theme')).toBe('light');
+    first.unmount();
+
+    // Simulate a fresh page load: DOM attribute gone, only storage survives.
+    document.documentElement.removeAttribute('data-theme');
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('button')).toHaveTextContent('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+  });
+
+  it('prefers the saved theme over a conflicting data-theme attribute', () => {
+    stubPrefersDark(true);
+    localStorage.setItem('theme', 'light');
+    document.documentElement.setAttribute('data-theme', 'dark');
+
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('button')).toHaveTextContent('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+  });
+
+  it('falls back to the OS preference when storage is unavailable', () => {
+    stubPrefersDark(false);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('button')).toHaveTextContent('light');
+  });
 });

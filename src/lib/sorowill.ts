@@ -125,10 +125,21 @@ export function getRpcUrl(): string {
 }
 
 /**
- * Returns a lazily-initialized, module-level singleton `SoroWillClient`
- * configured from the active network.
+ * Optional dependency-injection context for {@link getSoroWillClient}.
+ * Lets tests (or callers) supply a client without touching module state.
  */
-export function getSoroWillClient(): SoroWillClient {
+export interface SoroWillClientContext {
+  /** Use this client instead of the module-level singleton. */
+  client?: SoroWillClient;
+}
+
+/**
+ * Returns a lazily-initialized, module-level singleton `SoroWillClient`
+ * configured from the active network. Pass `context.client` to bypass the
+ * singleton entirely (e.g. inject a fake in unit tests).
+ */
+export function getSoroWillClient(context?: SoroWillClientContext): SoroWillClient {
+  if (context?.client) return context.client;
   const network = getNetwork();
   const contractId = getContractId();
   if (!cachedClient || cachedNetwork !== network) {
@@ -164,8 +175,11 @@ const GUARDIAN_SCAN_MAX_ID = 1000;
  * stopping once an entire batch turns up no wills. This avoids capping the
  * scan at a fixed constant while still bounding the total work performed.
  */
-export async function getWillsByGuardian(guardianAddress: string): Promise<GuardianWillsResult> {
-  const client = getSoroWillClient();
+export async function getWillsByGuardian(
+  guardianAddress: string,
+  context?: SoroWillClientContext,
+): Promise<GuardianWillsResult> {
+  const client = getSoroWillClient(context);
   const wills: Will[] = [];
   let hasErrors = false;
 
@@ -209,8 +223,8 @@ const ENUMERATE_MAX_ID = 1000;
  * as a fallback when the contract doesn't expose an aggregate stats query
  * (see StatsContent).
  */
-export async function enumerateAllWills(): Promise<Will[]> {
-  const client = getSoroWillClient();
+export async function enumerateAllWills(context?: SoroWillClientContext): Promise<Will[]> {
+  const client = getSoroWillClient(context);
   const wills: Will[] = [];
 
   for (let batchStart = 1; batchStart <= ENUMERATE_MAX_ID; batchStart += ENUMERATE_BATCH_SIZE) {

@@ -2,11 +2,22 @@
 
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
+import { themeCookie } from '@/lib/theme';
+
 type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
+}
+
+function readStoredTheme(): Theme | null {
+  try {
+    const stored = localStorage.getItem('theme');
+    return stored === 'light' || stored === 'dark' ? stored : null;
+  } catch {
+    return null;
+  }
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,21 +26,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
-    // The blocking bootstrap script in the document head has already resolved
-    // and applied data-theme before first paint. Trust that attribute as the
-    // source of truth; only recompute if it is somehow missing.
+    // Restore the saved preference on mount. A valid stored value always wins
+    // (matching public/theme-init.js); otherwise keep whatever the head
+    // bootstrap script applied, and only then fall back to the OS preference.
+    const stored = readStoredTheme();
     const applied = document.documentElement.getAttribute('data-theme');
-    if (applied === 'light' || applied === 'dark') {
-      setTheme(applied);
-      return;
-    }
-
-    // Only trust a valid stored value (matching public/theme-init.js); anything
-    // else falls back to the OS preference.
-    const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initialTheme: Theme =
-      stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
+      stored ??
+      (applied === 'light' || applied === 'dark'
+        ? applied
+        : window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light');
 
     setTheme(initialTheme);
     document.documentElement.setAttribute('data-theme', initialTheme);
@@ -40,7 +48,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggleTheme = () => {
     const newTheme: Theme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    try {
+      localStorage.setItem('theme', newTheme);
+    } catch {
+      /* storage unavailable (e.g. privacy mode) - theme still applies for this session */
+    }
+    document.cookie = themeCookie(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 

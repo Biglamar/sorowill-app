@@ -2,7 +2,23 @@
 
 import { useLocale } from 'next-intl';
 
-type SupportedLocale = 'en' | 'es';
+import { supportedLocales, type SupportedLocale } from '@/i18n/negotiate';
+
+const DEFAULT_LOCALE: SupportedLocale = 'en';
+const LOCALE_COOKIE = 'NEXT_LOCALE';
+
+export function isSupportedLocale(value: unknown): value is SupportedLocale {
+  return typeof value === 'string' && (supportedLocales as readonly string[]).includes(value);
+}
+
+function writeLocaleCookie(locale: SupportedLocale) {
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000`;
+}
+
+function readLocaleCookie(): string | undefined {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
 
 const localeLabels: Record<SupportedLocale, string> = {
   en: 'English',
@@ -22,8 +38,15 @@ function persistLocale(locale: SupportedLocale) {
 export function LanguageSelector() {
   const locale = useLocale() as SupportedLocale;
 
-  const handleLocaleChange = (newLocale: SupportedLocale) => {
-    if (newLocale === locale) return;
+  useEffect(() => {
+    const persisted = readLocaleCookie();
+    if (persisted !== undefined && !isSupportedLocale(persisted)) {
+      writeLocaleCookie(DEFAULT_LOCALE);
+    }
+  }, []);
+
+  const handleLocaleChange = (newLocale: string) => {
+    if (!isSupportedLocale(newLocale) || newLocale === locale) return;
 
     persistLocale(newLocale);
     window.location.reload();
@@ -31,7 +54,7 @@ export function LanguageSelector() {
 
   return (
     <div className="flex items-center gap-2">
-      {(['en', 'es'] as const).map((loc) => (
+      {supportedLocales.map((loc) => (
         <button
           key={loc}
           onClick={() => handleLocaleChange(loc)}

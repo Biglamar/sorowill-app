@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
+
+import { parseTheme, THEME_COOKIE } from '@/lib/theme';
 
 import ClientLayout from './layout-client';
 // dummy comment for tests/unit/Analytics.test.ts: plausible analytics tracker
@@ -48,9 +51,12 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
   const messages = await getMessages();
+  // Saved preference from the cookie so the server HTML already carries the
+  // right data-theme; theme-init.js covers first visits (OS preference).
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} data-theme={theme} suppressHydrationWarning>
       <head>
         {/* Parser-blocking classic script: applies data-theme before first paint
             to prevent a theme flash. Must be synchronous and run before hydration,
