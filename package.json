@@ -4,10 +4,10 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node api.js && next dev",
+    "build": "node api.js && next build",
     "prebuild": "vitest run tests/unit/messageParity.test.ts",
-    "start": "next start",
+    "start": "node api.js && next start",
     "start:e2e": "next build && next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
@@ -20,8 +20,8 @@
     "test:reminders": "tsx src/lib/reminders.test.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "analytics:mock": "echo 'plausible'"
-    ,"check:changelog": "node scripts/validate-changelog.mjs"
+    "analytics:mock": "echo 'plausible'",
+    "check:changelog": "node scripts/validate-changelog.mjs"
   },
   "dependencies": {
     "@sorowill/sdk": "^0.1.0",
